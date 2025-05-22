@@ -24,7 +24,7 @@ const onOpen = () => {
   const app = getContainer();
   const ui = app.getUi();
   const menu = ui.createAddonMenu();
-  menu.addItem('Get Summary', 'showSidebar');
+  menu.addItem('✨ Generate a diagram', 'showSidebar');
   menu.addToUi();
 };
 
