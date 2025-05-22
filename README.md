@@ -17,7 +17,7 @@ This repository demonstrates the capabilities of the experimental **Chrome Gemin
   * The Prompt API was introduced for experimentation, with an "Intent to Experiment" in Chrome 137\.  
   * As of Chrome 138, the `aiLanguageModelOriginTrial` permission is no longer required. It's recommended to use Chrome 138 or newer.  
 * **Browser Configuration & Model Download:**  
-  * Using this API requires specific Chrome versions (138+ recommended) and enabling experimental flags. The Gemini Nano model also needs to be downloaded by your browser.  
+  * Using this API requires specific Chrome versions (Chrome 137 beta or greater) and enabling experimental flags. The Gemini Nano model also needs to be downloaded by your browser.  
   * Detailed steps for setting up your browser environment, including enabling the necessary flags and ensuring the model is downloaded, are provided in the **"🚀 Getting Started / Setup (for this Demo Add-on) \> 1\. Environment Setup"** section below.  
 * **Model Availability Check:** The API provides `LanguageModel.availability()` to check if the model is ready (`'readily'`), needs to be downloaded (`'after-download'`), or is unavailable (`'no'`). This add-on demonstrates handling these states.
 
