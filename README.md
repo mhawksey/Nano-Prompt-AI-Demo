@@ -137,16 +137,7 @@ If you have one or more saved test deployments, you can run one of them by follo
 
 The test document opens in a new tab. The add-on is in the authorization state specified in the test deployment. You can verify that the add-on functions as intended by interacting with its menu and UI elements.
 
-#### *Testing details* 
-
-There are a number of things to keep in mind while testing Editor add-ons this way:
-
-* Installable triggers aren't supported when testing. Functionality that depends on installable triggers is not testable.  
-* While running a test deployment that’s set to test with the latest code, you can see changes saved to the add-on script by refreshing the test document.  
-* The test document has a URL that you can share with editors of the original test document. This way, you can more easily collaborate with others while testing and developing.  
-* If your add-on uses the Properties service, properties persist and remain available the next time the test deployment is run.  
-* In addition, any test deployment that uses the same combination of add-on and test document has access to the same property information. For example, if you create two test deployments, the properties saved while running the first are available while running the second and vice versa, but only if the deployments use the same script and test document.  
-* If you run a test deployment, you might be prompted for authorization if you have not run the script before. Be aware that authorizing a script while testing also authorizes the script outside of testing.
+> The test document has a URL that you can share with editors of the original test document. This way, you can more easily collaborate with others while testing and developing.  
 
 ## **📖 How to Use (the Demo Add-on after Setup & Testing)**
 
