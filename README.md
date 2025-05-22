@@ -1,123 +1,124 @@
-# AI-Powered Diagram Generator for Google Workspace
+# Showcase: Gemini Nano Prompt API in a Google Workspace Add-on
 
-This Google Workspace Editor add-on leverages the Chrome Gemini Nano Prompt API to empower users to generate diagrams from text descriptions, edit existing MermaidJS code, and seamlessly insert these diagrams as images directly into their Google Docs, Sheets, and Slides.
+This repository demonstrates the capabilities of the experimental **Chrome Gemini Nano Prompt API** (`window.LanguageModel`) through a Google Workspace Editor add-on. The add-on allows users to generate and edit diagrams using natural language, primarily serving as an example to explore and showcase the on-device AI potential of Gemini Nano within Chrome extensions.
 
-## Features
+**The diagram generation feature was chosen specifically to test the capabilities of Gemini Nano in processing text-to-code tasks (MermaidJS).**
 
-*   **Generate Diagrams from Text:** Describe your diagram using natural language (e.g., "flowchart for a login process"). The add-on utilizes the Gemini Nano API to convert your description into MermaidJS diagram code.
-*   **Edit MermaidJS Code:** Directly input, paste, or modify MermaidJS code in an intuitive sidebar editor.
-*   **Live Preview:** Instantly visualize your MermaidJS diagram as you type or after AI generation. The preview updates in real-time.
-*   **AI-Powered Diagram Fixing:** If your manually written or AI-generated MermaidJS code contains syntax errors, the add-on can leverage the Gemini Nano API to analyze the error and suggest a corrected version of the code.
-*   **Customizable Image Width:** Specify the desired width (in pixels) for the output PNG image before insertion.
-*   **Insert Diagrams into Workspace:** Insert the final diagram as a PNG image into your active Google Document, Spreadsheet (into the active cell), or Presentation (onto the current slide).
-*   **Cross-Platform Compatibility:** Functions consistently across Google Docs, Google Sheets, and Google Slides.
-*   **AI Model Status:** The sidebar informs users about the availability of the Gemini Nano model (e.g., ready, downloading, unavailable).
+## 🚀 Key Highlights & Purpose
 
-## How it Works
+* **Experimental Technology:** This project utilizes the **Prompt API, which is experimental and subject to change**[cite: 1]. The primary goal is to explore its current capabilities and provide a practical example for developers interested in on-device AI.
+* **On-Device AI Demonstration:** It showcases how Gemini Nano can power AI features directly within the browser, operating on the user's device[cite: 4].
+* **Empowering Workspace Developers:** This example illustrates a potential future where Google Workspace developers can build add-ons with generative AI features that offer enhanced data privacy (as data can be processed locally) and potentially reduced operational costs (by minimizing server-side AI computation).
 
-The add-on integrates client-side AI processing with Google Apps Script for a seamless user experience:
+## ⚠️ IMPORTANT: Experimental API & Setup Requirements
 
-1.  **User Input:** The user either types a natural language description for a diagram or inputs/edits MermaidJS code directly in the add-on sidebar.
-2.  **AI Processing (Gemini Nano):**
-    *   **Generation:** For text descriptions, the client-side JavaScript calls the `LanguageModel.prompt()` method of the Chrome Gemini Nano Prompt API. A carefully crafted system prompt guides the AI to return valid MermaidJS code.
-    *   **Fixing:** If existing MermaidJS code has rendering errors, the erroneous code along with the error message is sent to the Gemini Nano model via `LanguageModel.prompt()` to attempt a fix.
-3.  **MermaidJS Rendering:** The `mermaid.min.js` library (included in the sidebar) renders the generated or manually entered MermaidJS code into an SVG preview within the sidebar.
-4.  **Image Conversion & Insertion:**
-    *   When the user clicks "Insert Diagram," the client-side script converts the SVG preview into a base64 encoded PNG image.
-    *   This image data is sent to a server-side Google Apps Script function (`insertMermaidImage` in `Code.gs`).
-    *   The Apps Script function then inserts the PNG image into the active Google Workspace editor.
+* **API Status:** The Prompt API is an experimental feature within Chrome[cite: 1]. Its functionality and availability might change in future Chrome versions. Always refer to the latest [Chrome AI Documentation](https://developer.chrome.com/docs/extensions/ai/prompt-api) for up-to-date information[cite: 2].
+* **Chrome Version:**
+    * The Prompt API was introduced for experimentation, with an "Intent to Experiment" in Chrome 137[cite: 3].
+    * As of Chrome 138, the `aiLanguageModelOriginTrial` permission is no longer required[cite: 11, 12]. It's recommended to use Chrome 138 or newer.
+* **Browser Configuration:**
+    * The Gemini Nano model, which powers the Prompt API, is downloaded by Chrome when an extension first attempts to use the API[cite: 14].
+    * Depending on your Chrome version and configuration, you might need to enable specific flags in `chrome://flags` (e.g., search for "Experimental AI" or "On-Device Model" and ensure relevant settings are enabled) for the `window.LanguageModel` API to be available.
+* **Model Availability:** The API provides a mechanism to check if the model is ready, needs to be downloaded, or is unavailable[cite: 16, 17, 18, 19]. This add-on demonstrates how to handle these states.
 
-## Core Technologies Used
+## ✨ A Glimpse into the Future: On-Device GenAI for Workspace Developers
 
-*   **Google Apps Script:** Provides the core add-on framework, enables UI elements like the sidebar and menu items, and handles server-side operations like inserting images into Google Workspace documents.
-*   **Chrome Gemini Nano Prompt API (`window.LanguageModel`):** The backbone for the AI features. It runs on-device in Chrome, allowing for quick and privacy-preserving generation and correction of MermaidJS code.
-*   **MermaidJS:** A JavaScript library that takes Markdown-inspired text definitions and renders them as diagrams and charts. Used here for both live previews and the final diagram structure.
-*   **HTML, CSS, JavaScript:** Standard web technologies used to structure, style, and create the interactive user interface within the add-on sidebar.
+The integration of the Prompt API in Chrome extensions opens up exciting possibilities for Google Workspace add-ons:
 
-## Project Structure
+* **Enhanced Data Privacy:** By processing data on-device, sensitive user information within documents, sheets, or slides doesn't need to leave the user's machine for AI-powered analysis or generation, addressing key privacy concerns.
+* **Reduced Server-Side Costs:** Leveraging client-side AI can reduce or eliminate the need for server-side AI model hosting and API call costs for certain features.
+* **Responsive User Experience:** On-device processing can lead to faster interactions as network latency is minimized.
+* **Offline Capabilities (Potential):** Once the model is downloaded, some AI features could potentially work even without an active internet connection.
 
-*   `Code.gs`: This Apps Script file contains the server-side logic.
-    *   `onOpen()`, `onInstall()`: Handle add-on setup, creating a custom menu in the Google Workspace editor.
-    *   `showSidebar()`: Displays the HTML-based sidebar to the user.
-    *   `getContainer()`: Detects whether the add-on is running in Docs, Sheets, or Slides.
-    *   `insertMermaidImage(base64ImageData)`: Receives base64 PNG data from the sidebar and inserts it into the appropriate active document, sheet, or slide.
-    *   `pingServer()`: A simple test function.
-*   `Sidebar.html`: Defines the complete user interface for the add-on's sidebar.
-    *   **HTML:** Structures the input areas for text prompts and Mermaid code, buttons for actions (generate, render, insert, fix), preview area, and status messages.
-    *   **CSS:** Styles the sidebar for a clean and user-friendly experience.
-    *   **JavaScript (Client-Side):**
-        *   Initializes and interacts with the `LanguageModel` (Gemini Nano API).
-        *   Handles user input for diagram descriptions and Mermaid code.
-        *   Calls `mermaid.render()` to display diagram previews.
-        *   Manages AI model availability status and user notifications.
-        *   Converts SVG diagrams to PNG data for insertion.
-        *   Communicates with `Code.gs` using `google.script.run` to trigger image insertion.
-*   `appsscript.json`: The manifest file for the Google Apps Script project. It defines project dependencies, authorization scopes, time zone, runtime version, and metadata required for the add-on to function correctly within Google Workspace.
-*   `README.md`: This documentation file.
-*   `LICENSE`: Contains the Apache 2.0 license under which this project is distributed.
+This diagram generator add-on is a practical example of these principles, performing tasks like text-to-diagram generation and code correction locally.
 
-## Getting Started / Setup
+## 🔧 Example Use Case: AI-Powered Diagram Generation
+
+To demonstrate the Prompt API, this add-on provides the following diagramming functionalities within Google Docs, Sheets, and Slides:
+
+* **Generate Diagrams from Text:** Users can describe a diagram (e.g., "flowchart for a login process"), and the add-on uses the Gemini Nano API to convert this into MermaidJS diagram code.
+* **Edit MermaidJS Code:** Users can directly input or modify MermaidJS code.
+* **Live Preview:** A real-time visual preview of the MermaidJS diagram is displayed.
+* **AI-Powered Diagram Fixing:** If MermaidJS code has errors, the API is used to attempt a correction.
+* **Insert Diagrams:** The final diagram can be inserted as a PNG image into the active Google Workspace editor.
+* **AI Model Status:** The add-on informs users about the Gemini Nano model's availability status[cite: 15, 16, 17, 18, 19].
+
+## 💡 How this Add-on Leverages the Prompt API
+
+This add-on utilizes several key features of the Chrome `window.LanguageModel` API:
+
+* **Model Availability Check (`LanguageModel.availability()`):**
+    * Before attempting any AI operations, the add-on calls `LanguageModel.availability()` to determine if the model is `readily` available, needs to be downloaded (`after-download`), or is currently unusable (`no`)[cite: 13, 15, 16, 17, 18, 19].
+    * This function also provides information about model capabilities like default `topK` and `temperature` values[cite: 25, 26, 27].
+* **Language Model Session Creation (`LanguageModel.create()`):**
+    * A language model session is created using `LanguageModel.create()`[cite: 13].
+    * **Download Monitoring:** If the model status is `'after-download'`, the `create` call can include a `monitor` function to listen for `downloadprogress` events, allowing the UI to update the user on the download status[cite: 20, 21, 23].
+    * **Initial Prompts (System Prompts):** The `initialPrompts` option (formerly `systemPrompt`) is used to provide context to the Gemini Nano model[cite: 38]. For example, a prompt like "You are an expert in MermaidJS. Output ONLY valid MermaidJS code based on the user's request." guides the AI to generate appropriate responses for diagram generation and fixing.
+    * **Session Customization (Potential):** The API allows customization of `topK` and `temperature` per session to influence the model's output[cite: 31, 32]. This example includes placeholders, demonstrating where these could be set.
+* **Prompting the Model (`session.prompt()`):**
+    * The core interaction with the AI happens via `session.prompt("user's text here")`[cite: 30, 49].
+    * For diagram generation, the user's natural language description is sent as the prompt.
+    * For fixing errors, the faulty MermaidJS code along with the error message is provided to the model.
+* **Resource Management:**
+    * The add-on could be extended to use `session.destroy()` to free resources when a session is no longer needed, especially for long-lived applications[cite: 63].
+* **Error Handling:** Client-side JavaScript includes `try...catch` blocks to manage potential errors during API interactions.
+
+*(Note: This example primarily uses `session.prompt()`. The Prompt API also supports `session.promptStreaming()` for handling longer, streaming responses[cite: 30, 51], which could be beneficial for other types of generative tasks.)*
+
+## 🛠️ Core Technologies in this Demonstrator
+
+* **Chrome Gemini Nano Prompt API (`window.LanguageModel`):** The core AI engine, running on-device in Chrome[cite: 4].
+* **Google Apps Script:** Provides the add-on framework, UI elements (sidebar, menus), and server-side functions for image insertion.
+* **MermaidJS:** Renders text-based diagram definitions into visual diagrams.
+* **HTML, CSS, JavaScript:** For the add-on's sidebar user interface and client-side logic.
+
+## ⚙️ Project Structure
+
+* `Code.gs`: Server-side Apps Script logic (menu creation, sidebar display, image insertion).
+* `Sidebar.html`: HTML, CSS, and client-side JavaScript for the add-on's UI and Prompt API interaction.
+* `appsscript.json`: The add-on manifest file.
+* `README.md`: This file.
+* `LICENSE`: Apache 2.0 License.
+
+## 🚀 Getting Started / Setup (for this Demo Add-on)
 
 This project is a demonstration Google Workspace Editor add-on. To use or test it:
 
-1.  **Environment:** You need a modern version of Google Chrome that supports the Gemini Nano Prompt API ( `window.LanguageModel`). Some features might require enabling specific flags in `chrome://flags` if the model isn't readily available (e.g., search for "Experimental AI" or "On-Device Model").
+1.  **Environment:**
+    * **Google Chrome:** Ensure you are using a recent version of Google Chrome that supports the `window.LanguageModel` API (preferably Chrome 138 or newer)[cite: 11].
+    * **Enable Flags (if needed):** Navigate to `chrome://flags`. Search for flags related to "Experimental AI", "On-Device Model", or similar terms, and ensure they are enabled if the API isn't active by default. The exact flag names can change, so refer to recent Chrome developer resources if unsure.
 2.  **Apps Script Project:**
-    *   Create a new Google Apps Script project or use an existing one.
-    *   Copy the content of `Code.gs`, `Sidebar.html`, and `appsscript.json` into the corresponding files in your Apps Script project.
-3.  **Deployment:**
-    *   In the Apps Script editor, go to "Deploy" > "New deployment".
-    *   For "Select type", click the gear icon and choose "Editor Add-on".
-    *   Provide a description and click "Deploy".
-    *   You will be prompted to authorize the script's required permissions.
+    * Create a new Google Apps Script project.
+    * Copy the content of `Code.gs`, `Sidebar.html`, and `appsscript.json` into the corresponding files in your Apps Script project.
+3.  **Deployment (for testing):**
+    * In the Apps Script editor, go to "Deploy" > "New deployment".
+    * Select type: "Editor Add-on".
+    * Provide a description and click "Deploy".
+    * Authorize the script's required permissions.
 4.  **Installation (for testing deployed version):**
-    *   After deployment, you'll get an Add-on ID. You might need to install it for your account using this ID or by sharing it appropriately for testing.
-    *   Alternatively, you can run the add-on directly from the Apps Script editor for development testing by selecting a function like `onOpen` and running it, then opening a relevant Google Workspace document.
+    * Use the Add-on ID from the deployment to install it for your account, or run directly from the Apps Script editor for development by selecting `onOpen` and running it, then opening a Google Doc, Sheet, or Slide.
 
-## How to Use
+## 📖 How to Use (the Demo Add-on)
 
-1.  **Open the Add-on:**
-    *   Open a Google Document, Sheet, or Slide.
-    *   An add-on menu (likely named based on your deployment, e.g., "Gemini Diagram Generator") will appear in the menu bar.
-    *   Click this menu and select "✨ Generate a diagram" (or the item defined in `onOpen`) to launch the sidebar.
-2.  **Check AI Model Status:** The sidebar will display messages about the Gemini Nano model's status (e.g., "AI is ready," "AI model is downloading...", "Built-in AI (LanguageModel API) is not available...").
-3.  **Generate Diagram from Description:**
-    *   In the "Describe your diagram" text area, type a clear description of the diagram you want (e.g., "A sequence diagram for a user logging into a website").
-    *   Click the "Generate Diagram from Description" button.
-    *   The AI will process your request. The generated MermaidJS code will appear in the "MermaidJS Code" text area below, and a visual preview will be rendered in the "Preview" section.
-4.  **Write or Edit MermaidJS Code Manually:**
-    *   You can type MermaidJS code directly into the "MermaidJS Code" text area or paste existing code.
-    *   Click the "Render Diagram from Code" button to update the preview section with your changes.
-5.  **Fix Diagram with AI:**
-    *   If the MermaidJS code has errors (e.g., after manual editing or if the AI generates imperfect code), an error message will typically appear above or in the preview area.
-    *   The "Fix Diagram with AI" button will become visible. Click it.
-    *   The add-on will send the faulty code and the error message to the Gemini Nano model. The AI's suggested fix will replace the content of the "MermaidJS Code" text area, and the preview will update.
-6.  **Insert Diagram into Document:**
-    *   Once you are satisfied with the preview, you can optionally specify a width for the image in the "Width (px):" input field (default is 1200px).
-    *   Click the "Insert Diagram into Document" button.
-    *   The diagram will be converted to a PNG image and inserted into your active Google Document (at the cursor position or appended), Sheet (in the currently active cell/range), or Slide (on the current slide).
+1.  **Open the Add-on:** In a Google Document, Sheet, or Slide, find the add-on menu (e.g., "Gemini Diagram Showcase") and select the option to show the sidebar.
+2.  **Check AI Model Status:** The sidebar will indicate the Gemini Nano model's status (e.g., "AI is ready," "AI model is downloading...", "Built-in AI (LanguageModel API) is not available...")[cite: 15, 16, 17, 18, 19]. If downloading, please wait for it to complete[cite: 22].
+3.  **Generate/Edit/Fix Diagram:** Use the input fields and buttons in the sidebar to describe, generate, edit, or fix MermaidJS diagrams.
+4.  **Insert Diagram:** Click "Insert Diagram into Document" to place the diagram as an image into your active Google Workspace file.
 
-## Key Gemini Nano Prompt API Features Used (`window.LanguageModel`)
+## 📚 Resources
 
-This add-on effectively demonstrates several powerful features of the Chrome built-in AI Prompt API:
+* **Prompt API Documentation (Chrome for Developers):** [https://developer.chrome.com/docs/extensions/ai/prompt-api](https://developer.chrome.com/docs/extensions/ai/prompt-api) [cite: 2]
+* **People + AI Guidebook:** For best practices in designing with AI[cite: 10]. (https://pair.withgoogle.com/guidebook/)
+* **Prompt API GitHub (Explainer & Issues):** (https://github.com/webmachinelearning/prompt-api) or the newer explainer link if available from the docs[cite: 78].
+* **MermaidJS Official Documentation:** [https://mermaid.js.org/](https://mermaid.js.org/)
+* **Participate & Share Feedback:**
+    * For feedback on Chrome's implementation: File a bug report or feature request via the Chromium issue tracker[cite: 76].
+    * For feedback on the API shape: Comment on issues in the Prompt API GitHub repository[cite: 77].
 
-*   **Model Availability Check (`LanguageModel.availability()`):** The add-on checks the status of the Gemini Nano model (`available`, `downloadable`, `downloading`, `unavailable`) and informs the user, enabling a graceful experience even if the AI isn't immediately ready.
-*   **Session Creation (`LanguageModel.create(sessionOptions)`):**
-    *   **System Prompts (`initialPrompts`):** A crucial feature used to guide the AI. The add-on provides a system prompt (e.g., "You are an expert in MermaidJS... Output ONLY the MermaidJS code...") to ensure the model's responses are constrained to valid and directly usable MermaidJS syntax. This is used for both diagram generation and the fixing feature.
-    *   **Download Monitoring (`monitor`):** The `monitor` option in `sessionOptions` allows the add-on to listen to `downloadprogress` events, providing feedback to the user if the AI model needs to be downloaded.
-    *   **Custom Parameters (Potential):** The code includes `globalTemperature` and `globalTopK` variables, demonstrating where one might set `temperature` and `topK` in `sessionOptions` to influence the AI's output randomness and creativity, though they are currently set to fairly neutral values.
-*   **Prompting (`languageModelSession.prompt(text)`):** This is the core function for interacting with the AI. The add-on sends the user's natural language description or the erroneous Mermaid code (with its error context) to the model.
-*   **Error Handling:** The client-side JavaScript includes `try...catch` blocks to manage potential errors during API interactions (e.g., if the model is unavailable or a prompt fails).
+## 📜 License
 
-## Resources
+This project is licensed under the Apache License 2.0. See the `LICENSE` file for details.
 
-*   **Chrome AI Documentation - Prompt API:** [https://developer.chrome.com/docs/extensions/ai/prompt-api](https://developer.chrome.com/docs/extensions/ai/prompt-api)
-*   **Prompt API GitHub Explainer:** [https://github.com/webmachinelearning/prompt-api](https://github.com/webmachinelearning/prompt-api)
-*   **MermaidJS Official Documentation:** [https://mermaid.js.org/](https://mermaid.js.org/)
+## 🤝 Contributing
 
-## License
-
-This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE) file for details.
-
-## Contributing
-
-Contributions are welcome! If you have suggestions for improvements or find any issues, please feel free to open an issue or submit a pull request.
+As this is primarily a showcase of an experimental API, contributions that further demonstrate or explore the API's capabilities within this context are welcome. Please open an issue to discuss potential changes.
