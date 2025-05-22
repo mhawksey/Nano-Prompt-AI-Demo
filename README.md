@@ -6,20 +6,20 @@ This repository demonstrates the capabilities of the experimental **Chrome Gemin
 
 ## 🚀 Key Highlights & Purpose
 
-* **Experimental Technology:** This project utilizes the **Prompt API, which is experimental and subject to change**[cite: 1]. The primary goal is to explore its current capabilities and provide a practical example for developers interested in on-device AI.
-* **On-Device AI Demonstration:** It showcases how Gemini Nano can power AI features directly within the browser, operating on the user's device[cite: 4].
+* **Experimental Technology:** This project utilizes the **Prompt API, which is experimental and subject to change**. The primary goal is to explore its current capabilities and provide a practical example for developers interested in on-device AI.
+* **On-Device AI Demonstration:** It showcases how Gemini Nano can power AI features directly within the browser, operating on the user's device.
 * **Empowering Workspace Developers:** This example illustrates a potential future where Google Workspace developers can build add-ons with generative AI features that offer enhanced data privacy (as data can be processed locally) and potentially reduced operational costs (by minimizing server-side AI computation).
 
 ## ⚠️ IMPORTANT: Experimental API & Setup Requirements
 
-* **API Status:** The Prompt API is an experimental feature within Chrome[cite: 1]. Its functionality and availability might change in future Chrome versions. Always refer to the latest [Chrome AI Documentation](https://developer.chrome.com/docs/extensions/ai/prompt-api) for up-to-date information[cite: 2].
+* **API Status:** The Prompt API is an experimental feature within Chrome. Its functionality and availability might change in future Chrome versions. Always refer to the latest Chrome AI Documentation for up-to-date information.
 * **Chrome Version:**
-    * The Prompt API was introduced for experimentation, with an "Intent to Experiment" in Chrome 137[cite: 3].
-    * As of Chrome 138, the `aiLanguageModelOriginTrial` permission is no longer required[cite: 11, 12]. It's recommended to use Chrome 138 or newer.
+    * The Prompt API was introduced for experimentation, with an "Intent to Experiment" in Chrome 137.
+    * As of Chrome 138, the `aiLanguageModelOriginTrial` permission is no longer required. It's recommended to use Chrome 138 or newer.
 * **Browser Configuration:**
-    * The Gemini Nano model, which powers the Prompt API, is downloaded by Chrome when an extension first attempts to use the API[cite: 14].
+    * The Gemini Nano model, which powers the Prompt API, is downloaded by Chrome when an extension first attempts to use the API.
     * Depending on your Chrome version and configuration, you might need to enable specific flags in `chrome://flags` (e.g., search for "Experimental AI" or "On-Device Model" and ensure relevant settings are enabled) for the `window.LanguageModel` API to be available.
-* **Model Availability:** The API provides a mechanism to check if the model is ready, needs to be downloaded, or is unavailable[cite: 16, 17, 18, 19]. This add-on demonstrates how to handle these states.
+* **Model Availability:** The API provides a mechanism to check if the model is ready, needs to be downloaded, or is unavailable. This add-on demonstrates how to handle these states.
 
 ## ✨ A Glimpse into the Future: On-Device GenAI for Workspace Developers
 
@@ -41,33 +41,33 @@ To demonstrate the Prompt API, this add-on provides the following diagramming fu
 * **Live Preview:** A real-time visual preview of the MermaidJS diagram is displayed.
 * **AI-Powered Diagram Fixing:** If MermaidJS code has errors, the API is used to attempt a correction.
 * **Insert Diagrams:** The final diagram can be inserted as a PNG image into the active Google Workspace editor.
-* **AI Model Status:** The add-on informs users about the Gemini Nano model's availability status[cite: 15, 16, 17, 18, 19].
+* **AI Model Status:** The add-on informs users about the Gemini Nano model's availability status.
 
 ## 💡 How this Add-on Leverages the Prompt API
 
 This add-on utilizes several key features of the Chrome `window.LanguageModel` API:
 
 * **Model Availability Check (`LanguageModel.availability()`):**
-    * Before attempting any AI operations, the add-on calls `LanguageModel.availability()` to determine if the model is `readily` available, needs to be downloaded (`after-download`), or is currently unusable (`no`)[cite: 13, 15, 16, 17, 18, 19].
-    * This function also provides information about model capabilities like default `topK` and `temperature` values[cite: 25, 26, 27].
+    * Before attempting any AI operations, the add-on calls `LanguageModel.availability()` to determine if the model is `readily` available, needs to be downloaded (`after-download`), or is currently unusable (`no`).
+    * This function also provides information about model capabilities like default `topK` and `temperature` values.
 * **Language Model Session Creation (`LanguageModel.create()`):**
-    * A language model session is created using `LanguageModel.create()`[cite: 13].
-    * **Download Monitoring:** If the model status is `'after-download'`, the `create` call can include a `monitor` function to listen for `downloadprogress` events, allowing the UI to update the user on the download status[cite: 20, 21, 23].
-    * **Initial Prompts (System Prompts):** The `initialPrompts` option (formerly `systemPrompt`) is used to provide context to the Gemini Nano model[cite: 38]. For example, a prompt like "You are an expert in MermaidJS. Output ONLY valid MermaidJS code based on the user's request." guides the AI to generate appropriate responses for diagram generation and fixing.
-    * **Session Customization (Potential):** The API allows customization of `topK` and `temperature` per session to influence the model's output[cite: 31, 32]. This example includes placeholders, demonstrating where these could be set.
+    * A language model session is created using `LanguageModel.create()`.
+    * **Download Monitoring:** If the model status is `'after-download'`, the `create` call can include a `monitor` function to listen for `downloadprogress` events, allowing the UI to update the user on the download status.
+    * **Initial Prompts (System Prompts):** The `initialPrompts` option (formerly `systemPrompt`) is used to provide context to the Gemini Nano model. For example, a prompt like "You are an expert in MermaidJS. Output ONLY valid MermaidJS code based on the user's request." guides the AI to generate appropriate responses for diagram generation and fixing.
+    * **Session Customization (Potential):** The API allows customization of `topK` and `temperature` per session to influence the model's output. This example includes placeholders, demonstrating where these could be set.
 * **Prompting the Model (`session.prompt()`):**
-    * The core interaction with the AI happens via `session.prompt("user's text here")`[cite: 30, 49].
+    * The core interaction with the AI happens via `session.prompt("user's text here")`.
     * For diagram generation, the user's natural language description is sent as the prompt.
     * For fixing errors, the faulty MermaidJS code along with the error message is provided to the model.
 * **Resource Management:**
-    * The add-on could be extended to use `session.destroy()` to free resources when a session is no longer needed, especially for long-lived applications[cite: 63].
+    * The add-on could be extended to use `session.destroy()` to free resources when a session is no longer needed, especially for long-lived applications.
 * **Error Handling:** Client-side JavaScript includes `try...catch` blocks to manage potential errors during API interactions.
 
-*(Note: This example primarily uses `session.prompt()`. The Prompt API also supports `session.promptStreaming()` for handling longer, streaming responses[cite: 30, 51], which could be beneficial for other types of generative tasks.)*
+*(Note: This example primarily uses `session.prompt()`. The Prompt API also supports `session.promptStreaming()` for handling longer, streaming responses, which could be beneficial for other types of generative tasks.)*
 
 ## 🛠️ Core Technologies in this Demonstrator
 
-* **Chrome Gemini Nano Prompt API (`window.LanguageModel`):** The core AI engine, running on-device in Chrome[cite: 4].
+* **Chrome Gemini Nano Prompt API (`window.LanguageModel`):** The core AI engine, running on-device in Chrome.
 * **Google Apps Script:** Provides the add-on framework, UI elements (sidebar, menus), and server-side functions for image insertion.
 * **MermaidJS:** Renders text-based diagram definitions into visual diagrams.
 * **HTML, CSS, JavaScript:** For the add-on's sidebar user interface and client-side logic.
@@ -85,7 +85,7 @@ This add-on utilizes several key features of the Chrome `window.LanguageModel` A
 This project is a demonstration Google Workspace Editor add-on. To use or test it:
 
 1.  **Environment:**
-    * **Google Chrome:** Ensure you are using a recent version of Google Chrome that supports the `window.LanguageModel` API (preferably Chrome 138 or newer)[cite: 11].
+    * **Google Chrome:** Ensure you are using a recent version of Google Chrome that supports the `window.LanguageModel` API (preferably Chrome 138 or newer).
     * **Enable Flags (if needed):** Navigate to `chrome://flags`. Search for flags related to "Experimental AI", "On-Device Model", or similar terms, and ensure they are enabled if the API isn't active by default. The exact flag names can change, so refer to recent Chrome developer resources if unsure.
 2.  **Apps Script Project:**
     * Create a new Google Apps Script project.
@@ -101,19 +101,19 @@ This project is a demonstration Google Workspace Editor add-on. To use or test i
 ## 📖 How to Use (the Demo Add-on)
 
 1.  **Open the Add-on:** In a Google Document, Sheet, or Slide, find the add-on menu (e.g., "Gemini Diagram Showcase") and select the option to show the sidebar.
-2.  **Check AI Model Status:** The sidebar will indicate the Gemini Nano model's status (e.g., "AI is ready," "AI model is downloading...", "Built-in AI (LanguageModel API) is not available...")[cite: 15, 16, 17, 18, 19]. If downloading, please wait for it to complete[cite: 22].
+2.  **Check AI Model Status:** The sidebar will indicate the Gemini Nano model's status (e.g., "AI is ready," "AI model is downloading...", "Built-in AI (LanguageModel API) is not available..."). If downloading, please wait for it to complete.
 3.  **Generate/Edit/Fix Diagram:** Use the input fields and buttons in the sidebar to describe, generate, edit, or fix MermaidJS diagrams.
 4.  **Insert Diagram:** Click "Insert Diagram into Document" to place the diagram as an image into your active Google Workspace file.
 
 ## 📚 Resources
 
-* **Prompt API Documentation (Chrome for Developers):** [https://developer.chrome.com/docs/extensions/ai/prompt-api](https://developer.chrome.com/docs/extensions/ai/prompt-api) [cite: 2]
-* **People + AI Guidebook:** For best practices in designing with AI[cite: 10]. (https://pair.withgoogle.com/guidebook/)
-* **Prompt API GitHub (Explainer & Issues):** (https://github.com/webmachinelearning/prompt-api) or the newer explainer link if available from the docs[cite: 78].
+* **Prompt API Documentation (Chrome for Developers):** [https://developer.chrome.com/docs/extensions/ai/prompt-api](https://developer.chrome.com/docs/extensions/ai/prompt-api)
+* **People + AI Guidebook:** For best practices in designing with AI. (https://pair.withgoogle.com/guidebook/)
+* **Prompt API GitHub (Explainer & Issues):** (https://github.com/webmachinelearning/prompt-api) or the newer explainer link if available from the docs.
 * **MermaidJS Official Documentation:** [https://mermaid.js.org/](https://mermaid.js.org/)
 * **Participate & Share Feedback:**
-    * For feedback on Chrome's implementation: File a bug report or feature request via the Chromium issue tracker[cite: 76].
-    * For feedback on the API shape: Comment on issues in the Prompt API GitHub repository[cite: 77].
+    * For feedback on Chrome's implementation: File a bug report or feature request via the Chromium issue tracker.
+    * For feedback on the API shape: Comment on issues in the Prompt API GitHub repository.
 
 ## 📜 License
 
