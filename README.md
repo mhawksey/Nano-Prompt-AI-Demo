@@ -28,7 +28,6 @@ The integration of the Prompt API in Chrome extensions opens up exciting possibi
 * **Enhanced Data Privacy:** By processing data on-device, sensitive user information within documents, sheets, or slides doesn't need to leave the user's machine for AI-powered analysis or generation, addressing key privacy concerns.
 * **Reduced Server-Side Costs:** Leveraging client-side AI can reduce or eliminate the need for server-side AI model hosting and API call costs for certain features.
 * **Responsive User Experience:** On-device processing can lead to faster interactions as network latency is minimized.
-* **Offline Capabilities (Potential):** Once the model is downloaded, some AI features could potentially work even without an active internet connection.
 
 This diagram generator add-on is a practical example of these principles, performing tasks like text-to-diagram generation and code correction locally.
 
