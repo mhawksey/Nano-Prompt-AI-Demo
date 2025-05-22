@@ -1,0 +1,401 @@
+<!DOCTYPE html><html><head>
+  <base target="_top">
+  <link rel="stylesheet" href="https://ssl.gstatic.com/docs/script/css/styles.css">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 10px; }
+    textarea { width: 98%; margin-bottom: 10px; border: 1px solid #ccc; padding: 5px; }
+    button { margin-right: 5px; margin-bottom: 10px; }
+    #mermaid-diagram { margin-top:10px; padding:10px; border:1px solid #eee; min-height: 100px; text-align: center; }
+    #error-message { color: red; margin-top: 10px; }
+    label { font-weight: bold; margin-bottom: 3px; display: block; }
+    .input-group { margin-bottom: 10px; display: flex; align-items: center; }
+    .input-group label { margin-right: 5px; margin-bottom: 0; }
+    .input-group input[type="number"] { width: 70px; }
+  </style></head><body>
+  <div>
+    <label for="prompt-input">Describe your diagram (AI will generate Mermaid code):</label>
+    <textarea id="prompt-input" rows="4" placeholder="e.g., A simple flow chart with a start, a process, and an end."></textarea>
+    <button id="generate-from-prompt-btn" onclick="generateFromPrompt()">Generate Diagram from Description</button>
+  </div>
+
+  <hr>
+
+  <div>
+    <label for="mermaid-code">MermaidJS Code:</label>
+    <textarea id="mermaid-code" rows="10" placeholder="graph TD&#10;    A[Start] --> B(Process);&#10;    B --> C{Decision};&#10;    C -->|Yes| D[End];&#10;    C -->|No| E[Something Else];"></textarea>
+    <button onclick="renderDiagram()">Render Diagram from Code</button>
+    <div class="input-group">
+      <label for="image-width">Width (px):</label>
+      <input type="number" id="image-width" placeholder="1200" style="width: 80px; margin-right:10px;">
+      <button id="insert-diagram-btn" onclick="insertDiagram()">Insert Diagram into Document</button>
+    </div>
+  </div>
+
+  <label>Preview:</label>
+  <div id="mermaid-diagram">
+    </div>
+
+  <div id="error-message"></div>
+  <div id="info-message" style="color:blue;"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    let languageModelSession; // Stores the LanguageModel session
+    let mermaidInitialized = false; // Track Mermaid initialization
+
+    /**
+     * Initializes Mermaid.
+     */
+    function initializeMermaid() {
+      if (!mermaidInitialized) {
+        try {
+          mermaid.initialize({
+            startOnLoad: false,
+          });
+          mermaidInitialized = true;
+          console.log("Mermaid initialized.");
+        } catch (e) {
+          console.error("Mermaid initialization failed:", e);
+          document.getElementById('error-message').textContent = "Mermaid library failed to initialize: " + e.message;
+        }
+      }
+    }
+
+    /**
+     * Initializes the LanguageModel session for AI-powered diagram generation.
+     */
+    async function initializeLanguageModel() {
+      const promptButton = document.getElementById('generate-from-prompt-btn');
+      const errorMessageDiv = document.getElementById('error-message');
+      const infoMessageDiv = document.getElementById('info-message');
+      errorMessageDiv.textContent = '';
+      infoMessageDiv.textContent = '';
+
+      if (typeof LanguageModel === "undefined") {
+        errorMessageDiv.textContent = 'Built-in AI (LanguageModel API) is not available in this browser. You can still manually enter Mermaid code.';
+        console.warn('LanguageModel API not available.');
+        if (promptButton) promptButton.disabled = true;
+        return false;
+      }
+
+      try {
+        const availability = await LanguageModel.availability();
+        infoMessageDiv.textContent = `AI Model Status: ${availability}`;
+
+        if (availability === "unavailable") {
+          errorMessageDiv.textContent = 'AI features are unavailable on this device. Manual code entry is still available.';
+          if (promptButton) promptButton.disabled = true;
+          return false;
+        }
+
+        if (availability === "downloadable" || availability === "downloading") {
+          infoMessageDiv.textContent = "AI model is downloading or needs to be downloaded. Please wait... Initialization might take a moment.";
+        }
+
+        languageModelSession = await LanguageModel.create({
+          initialPrompts: [{
+            role: "system",
+            content: "You are an expert in MermaidJS. Convert the user's natural language description into valid MermaidJS markdown code. Output ONLY the MermaidJS code block itself. Do NOT include any explanatory text, greetings, apologies, or markdown fences like ```mermaid or ```. Your entire response should be directly usable as MermaidJS code. For example, if the user describes 'a flow from A to B then to C', you should output 'graph TD; A-->B; B-->C;'. If the user asks for 'sequence diagram: Alice calls Bob, Bob replies to Alice', you should output 'sequenceDiagram; Alice->>Bob: Call; Bob-->>Alice: Reply;'. Start directly with 'graph TD', 'sequenceDiagram', 'classDiagram', etc."
+          }],
+          monitor(m) {
+            m.addEventListener("downloadprogress", e => {
+              infoMessageDiv.textContent = `AI model download progress: ${Math.round(e.loaded * 100)}%`;
+              console.log(`AI Model Downloaded ${e.loaded * 100}%`);
+            });
+          }
+        });
+        console.log("LanguageModel session created successfully.");
+        infoMessageDiv.textContent = "AI is ready. Describe your diagram!";
+        if (promptButton) promptButton.disabled = false;
+        return true;
+
+      } catch (error) {
+        console.error("Failed to initialize LanguageModel session:", error);
+        errorMessageDiv.textContent = 'Error initializing AI: ' + error.message + '. Manual code entry is still available.';
+        if (promptButton) promptButton.disabled = true;
+        return false;
+      }
+    }
+
+    /**
+     * Generates MermaidJS code from the user's description using the LanguageModel API.
+     */
+    async function generateFromPrompt() {
+      const promptInput = document.getElementById('prompt-input').value;
+      const mermaidCodeTextarea = document.getElementById('mermaid-code');
+      const errorMessageDiv = document.getElementById('error-message');
+      const infoMessageDiv = document.getElementById('info-message');
+      const promptButton = document.getElementById('generate-from-prompt-btn');
+
+      errorMessageDiv.textContent = ''; 
+      infoMessageDiv.textContent = '';
+
+      if (!promptInput.trim()) {
+        errorMessageDiv.textContent = 'Please enter a description for the diagram.';
+        return;
+      }
+
+      if (!languageModelSession) {
+        errorMessageDiv.textContent = 'AI session not initialized. Attempting to re-initialize...';
+        const initialized = await initializeLanguageModel();
+        if (!initialized || !languageModelSession) {
+           errorMessageDiv.textContent = 'AI session could not be initialized. Please ensure your browser supports built-in AI and try reloading the add-on. You can still use manual code entry.';
+           return;
+        }
+        infoMessageDiv.textContent = 'AI re-initialized. Please try generating again.';
+        return; 
+      }
+
+      promptButton.disabled = true;
+      promptButton.textContent = 'Generating...';
+      infoMessageDiv.textContent = 'AI is thinking...';
+
+      try {
+        const result = await languageModelSession.prompt(promptInput);
+        console.log("Raw AI Response:", result);
+
+        let finalCode = result.trim();
+        const mermaidBlockRegex = /```(?:mermaid)?\s*([\s\S]*?)\s*```/;
+        const match = mermaidBlockRegex.exec(finalCode);
+
+        if (match && match[1]) {
+          finalCode = match[1].trim();
+          console.log("Extracted from markdown block:", finalCode);
+        } else {
+            console.log("Using direct AI response (assuming it's raw code):", finalCode);
+        }
+        
+        const validStartRegex = /^(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram|journey|gantt|pie|mindmap|timeline|C4Context|C4Container|C4Component|C4Dynamic|C4Deployment)/i;
+        if (!validStartRegex.test(finalCode.substring(0,100))) { 
+            console.warn("AI output might not be valid MermaidJS code. It doesn't start with a known diagram type.", finalCode);
+            infoMessageDiv.textContent = "AI response might not be valid Mermaid code. Please check the output.";
+        }
+
+        mermaidCodeTextarea.value = finalCode;
+        renderDiagram(); 
+        infoMessageDiv.textContent = 'Diagram code generated from description!';
+      } catch (error) {
+        console.error("Error prompting LanguageModel:", error);
+        let errorDetail = error.message;
+        if (error.name === 'QuotaExceededError') {
+            errorDetail = `The diagram description might be too long or complex for the AI. (Quota: ${error.quota}, Requested: ${error.requested})`;
+        }
+        mermaidCodeTextarea.value = `%% Error generating diagram from prompt: ${errorDetail}\n%% Please check your description or try again.\n\n${mermaidCodeTextarea.value}`;
+        errorMessageDiv.textContent = 'Error generating diagram: ' + errorDetail;
+        renderDiagram(); // Render to show the error comment in preview if possible
+      } finally {
+        promptButton.disabled = false;
+        promptButton.textContent = 'Generate Diagram from Description';
+      }
+    }
+
+    /**
+     * Renders the MermaidJS code from the textarea into the preview div.
+     */
+    async function renderDiagram() {
+      initializeMermaid(); 
+      if (!mermaidInitialized) return;
+
+      const mermaidCode = document.getElementById('mermaid-code').value;
+      const mermaidDiagramDiv = document.getElementById('mermaid-diagram');
+      const errorMessageDiv = document.getElementById('error-message');
+      // Clear previous error messages related to rendering, but not general AI errors.
+      if (errorMessageDiv.textContent.startsWith("Mermaid syntax error") || errorMessageDiv.textContent.startsWith("Error rendering diagram")) {
+          errorMessageDiv.textContent = '';
+      }
+      mermaidDiagramDiv.innerHTML = ''; 
+
+      if (!mermaidCode.trim()) {
+        mermaidDiagramDiv.innerHTML = '<em>Preview will appear here. Enter code or use AI.</em>';
+        return;
+      }
+
+      try {
+        const { svg, bindFunctions } = await mermaid.render('renderedMermaidDiagram', mermaidCode);
+        mermaidDiagramDiv.innerHTML = svg;
+        if (bindFunctions) {
+            bindFunctions(mermaidDiagramDiv); 
+        }
+      } catch (error) {
+        console.error("Mermaid rendering error:", error);
+        errorMessageDiv.textContent = "Mermaid syntax error or rendering issue: " + error.message;
+        mermaidDiagramDiv.innerHTML = `<pre style="color:red;">Error rendering diagram:\n${error.message}\n\nYour code:\n${mermaidCode.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre>`;
+      }
+    }
+
+    /**
+     * Converts an SVG string to a base64 encoded PNG Data URL at a specific width.
+     * @param {string} svgString The SVG code as a string.
+     * @param {number} targetWidth The desired width of the output PNG in pixels.
+     * @param {function(string|null)} callback Function to call with the PNG Data URL (or null on error).
+     */
+    function svgToPngDataURL(svgString, targetWidth, callback) {
+      const errorMessageDiv = document.getElementById('error-message'); // Ensure error message div is accessible
+      if (!svgString || typeof svgString !== 'string' || !svgString.startsWith('<svg')) {
+          console.error("Invalid SVG string passed to svgToPngDataURL:", svgString);
+          if (errorMessageDiv) errorMessageDiv.textContent = "Error: Invalid SVG data for conversion.";
+          callback(null);
+          return;
+      }
+
+      const img = new Image();
+      // Handle potential Unicode characters in SVG string for btoa
+      const svgDataUri = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgString)));
+      console.log("Generated SVG Data URI (length):", svgDataUri.length);
+
+      img.onload = () => {
+        console.log(`SVG loaded into image. Intrinsic dims: ${img.width}x${img.height}`);
+        if (img.width === 0 || img.height === 0) {
+           console.error("SVG loaded with zero dimensions. Cannot convert to PNG.");
+           if (errorMessageDiv) errorMessageDiv.textContent = "Error: SVG has zero dimensions, cannot process for PNG conversion.";
+           callback(null);
+           return;
+        }
+
+        const canvas = document.createElement('canvas');
+        const originalWidth = img.width;
+        const originalHeight = img.height;
+
+        canvas.width = targetWidth;
+        canvas.height = originalHeight * (targetWidth / originalWidth); // Maintain aspect ratio
+
+        console.log(`Canvas dimensions set to: ${canvas.width}x${canvas.height}`);
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        try {
+          const pngDataUrl = canvas.toDataURL('image/png');
+          console.log("PNG Data URL created successfully.");
+          callback(pngDataUrl);
+        } catch (e) {
+           console.error("Error converting canvas to PNG Data URL:", e);
+           if (errorMessageDiv) {
+               errorMessageDiv.textContent = "Error converting to PNG: " + e.message;
+               if (e.name === "SecurityError") {
+                   errorMessageDiv.textContent = "Error: Canvas security error during PNG conversion. This can happen with tainted canvases (e.g. external images in SVG).";
+               }
+           }
+           callback(null);
+        }
+      };
+
+      img.onerror = (e) => {
+        console.error("Error loading SVG Data URI into Image object:", e);
+        if (errorMessageDiv) errorMessageDiv.textContent = "Error: Failed to load the generated SVG into an image object for PNG conversion.";
+        callback(null);
+      };
+
+      img.src = svgDataUri;
+      console.log("Set image source to SVG Data URI for PNG conversion.");
+    }
+
+    /**
+     * Inserts the rendered diagram (as PNG) into the Google Workspace document.
+     */
+    function insertDiagram() {
+      const mermaidDiagramDiv = document.getElementById('mermaid-diagram');
+      const errorMessageDiv = document.getElementById('error-message');
+      const infoMessageDiv = document.getElementById('info-message');
+      const widthInput = document.getElementById('image-width');
+      const insertButton = document.getElementById('insert-diagram-btn');
+
+      errorMessageDiv.textContent = '';
+      infoMessageDiv.textContent = '';
+
+      const svgElement = mermaidDiagramDiv.querySelector('svg');
+
+      if (!svgElement) {
+        errorMessageDiv.textContent = 'No diagram rendered to insert. Please generate or enter code and render first.';
+        console.log('No SVG found to insert.');
+        return;
+      }
+
+      // Ensure SVG has xmlns attribute, crucial for proper rendering when converted
+      if (!svgElement.getAttribute('xmlns')) {
+          svgElement.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      }
+      const svgString = svgElement.outerHTML;
+
+      let exportWidth;
+      const widthValue = widthInput.value.trim();
+
+      if (widthValue === '') { // If input is empty, use default
+          exportWidth = 1200;
+          console.log('Width input empty, defaulting to 1200px for PNG export.');
+      } else {
+          exportWidth = parseInt(widthValue, 10);
+          if (isNaN(exportWidth) || exportWidth <= 0) {
+              errorMessageDiv.textContent = 'Please enter a valid positive number for the export width (e.g., 1200), or leave it empty for the default (1200px).';
+              console.error('Invalid export width for PNG:', widthValue);
+              return;
+          }
+      }
+      
+      if (insertButton) {
+        insertButton.disabled = true;
+        insertButton.textContent = 'Processing...';
+      }
+      infoMessageDiv.textContent = 'Converting diagram to PNG...';
+
+      svgToPngDataURL(svgString, exportWidth, (pngDataUrl) => {
+        if (!pngDataUrl) {
+          // svgToPngDataURL should have already set an error message in errorMessageDiv
+          if (!errorMessageDiv.textContent) { // Failsafe message
+              errorMessageDiv.textContent = 'Error: Failed to convert diagram to PNG.';
+          }
+          infoMessageDiv.textContent = ''; // Clear info message
+          if (insertButton) {
+            insertButton.disabled = false;
+            insertButton.textContent = 'Insert Diagram into Document';
+          }
+          return;
+        }
+
+        const base64ImageData = pngDataUrl.substring(pngDataUrl.indexOf(',') + 1);
+        infoMessageDiv.textContent = 'Inserting PNG into document...';
+
+        google.script.run
+          .withSuccessHandler(() => {
+            console.log('Diagram inserted successfully via Apps Script.');
+            infoMessageDiv.textContent = 'Diagram inserted successfully!';
+            if (insertButton) {
+              insertButton.disabled = false;
+              insertButton.textContent = 'Insert Diagram into Document';
+            }
+          })
+          .withFailureHandler((err) => {
+            console.error('Error inserting diagram via Apps Script:', err);
+            errorMessageDiv.textContent = 'Error inserting diagram: ' + (err.message || JSON.stringify(err));
+            infoMessageDiv.textContent = ''; // Clear info message
+            if (insertButton) {
+              insertButton.disabled = false;
+              insertButton.textContent = 'Insert Diagram into Document';
+            }
+          })
+          .insertMermaidImage(base64ImageData); // Send only base64 PNG data
+      });
+    }
+
+    window.onload = async () => {
+      initializeMermaid();
+      // Set placeholder for width input to show the default value hint more clearly
+      document.getElementById('image-width').placeholder = "1200 (default)";
+
+      const aiInitialized = await initializeLanguageModel();
+      if (aiInitialized) {
+          document.getElementById('info-message').textContent = "AI initialized. Describe your diagram or enter code.";
+      } else {
+          // If AI init failed, info message might have error, or be blank. Set a general status.
+          if (!document.getElementById('info-message').textContent && !document.getElementById('error-message').textContent) {
+             document.getElementById('info-message').textContent = "Manual Mermaid code entry is available.";
+          }
+      }
+      // Initial state for preview
+      if (!document.getElementById('mermaid-code').value.trim()) {
+          document.getElementById('mermaid-diagram').innerHTML = '<em>Preview will appear here. Enter code or use AI.</em>';
+      } else {
+          renderDiagram(); // Render if there's existing code (e.g. on reload with persisted textarea)
+      }
+    };
+  </script></body></html>
