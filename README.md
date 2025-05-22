@@ -12,14 +12,14 @@ This repository demonstrates the capabilities of the experimental **Chrome Gemin
 
 ## ⚠️ IMPORTANT: Experimental API & Setup Requirements
 
-* **API Status:** The Prompt API is an experimental feature within Chrome. Its functionality and availability might change in future Chrome versions. Always refer to the latest Chrome AI Documentation for up-to-date information.
+* **API Status:** The Prompt API is an experimental feature within Chrome. Its functionality and availability might change in future Chrome versions. Always refer to the latest [Chrome AI Documentation](https://developer.chrome.com/docs/extensions/ai/prompt-api) for up-to-date information.
 * **Chrome Version:**
     * The Prompt API was introduced for experimentation, with an "Intent to Experiment" in Chrome 137.
     * As of Chrome 138, the `aiLanguageModelOriginTrial` permission is no longer required. It's recommended to use Chrome 138 or newer.
-* **Browser Configuration:**
-    * The Gemini Nano model, which powers the Prompt API, is downloaded by Chrome when an extension first attempts to use the API.
-    * Depending on your Chrome version and configuration, you might need to enable specific flags in `chrome://flags` (e.g., search for "Experimental AI" or "On-Device Model" and ensure relevant settings are enabled) for the `window.LanguageModel` API to be available.
-* **Model Availability:** The API provides a mechanism to check if the model is ready, needs to be downloaded, or is unavailable. This add-on demonstrates how to handle these states.
+* **Browser Configuration & Model Download:**
+    * Using this API requires specific Chrome versions (138+ recommended) and enabling experimental flags. The Gemini Nano model also needs to be downloaded by your browser.
+    * Detailed steps for setting up your browser environment, including enabling the necessary flags and ensuring the model is downloaded, are provided in the **"🚀 Getting Started / Setup (for this Demo Add-on) > 1. Environment Setup"** section below.
+* **Model Availability Check:** The API provides `LanguageModel.availability()` to check if the model is ready (`'readily'`), needs to be downloaded (`'after-download'`), or is unavailable (`'no'`). This add-on demonstrates handling these states.
 
 ## ✨ A Glimpse into the Future: On-Device GenAI for Workspace Developers
 
@@ -28,6 +28,7 @@ The integration of the Prompt API in Chrome extensions opens up exciting possibi
 * **Enhanced Data Privacy:** By processing data on-device, sensitive user information within documents, sheets, or slides doesn't need to leave the user's machine for AI-powered analysis or generation, addressing key privacy concerns.
 * **Reduced Server-Side Costs:** Leveraging client-side AI can reduce or eliminate the need for server-side AI model hosting and API call costs for certain features.
 * **Responsive User Experience:** On-device processing can lead to faster interactions as network latency is minimized.
+* **Offline Capabilities (Potential):** Once the model is downloaded, some AI features could potentially work even without an active internet connection.
 
 This diagram generator add-on is a practical example of these principles, performing tasks like text-to-diagram generation and code correction locally.
 
@@ -52,14 +53,14 @@ This add-on utilizes several key features of the Chrome `window.LanguageModel` A
 * **Language Model Session Creation (`LanguageModel.create()`):**
     * A language model session is created using `LanguageModel.create()`.
     * **Download Monitoring:** If the model status is `'after-download'`, the `create` call can include a `monitor` function to listen for `downloadprogress` events, allowing the UI to update the user on the download status.
-    * **Initial Prompts (System Prompts):** The `initialPrompts` option (formerly `systemPrompt`) is used to provide context to the Gemini Nano model. For example, a prompt like "You are an expert in MermaidJS. Output ONLY valid MermaidJS code based on the user's request." guides the AI to generate appropriate responses for diagram generation and fixing.
+    * **Initial Prompts (System Prompts):** The `initialPrompts` option is used to provide context to the Gemini Nano model. For example, a prompt like "You are an expert in MermaidJS. Output ONLY valid MermaidJS code based on the user's request." guides the AI to generate appropriate responses for diagram generation and fixing.
     * **Session Customization (Potential):** The API allows customization of `topK` and `temperature` per session to influence the model's output. This example includes placeholders, demonstrating where these could be set.
 * **Prompting the Model (`session.prompt()`):**
     * The core interaction with the AI happens via `session.prompt("user's text here")`.
     * For diagram generation, the user's natural language description is sent as the prompt.
     * For fixing errors, the faulty MermaidJS code along with the error message is provided to the model.
 * **Resource Management:**
-    * The add-on could be extended to use `session.destroy()` to free resources when a session is no longer needed, especially for long-lived applications.
+    * The add-on could be extended to use `session.destroy()` to free resources when a session is no longer needed.
 * **Error Handling:** Client-side JavaScript includes `try...catch` blocks to manage potential errors during API interactions.
 
 *(Note: This example primarily uses `session.prompt()`. The Prompt API also supports `session.promptStreaming()` for handling longer, streaming responses, which could be beneficial for other types of generative tasks.)*
@@ -81,25 +82,77 @@ This add-on utilizes several key features of the Chrome `window.LanguageModel` A
 
 ## 🚀 Getting Started / Setup (for this Demo Add-on)
 
-This project is a demonstration Google Workspace Editor add-on. To use or test it:
+This project is a demonstration Google Workspace Editor add-on.
 
-1.  **Environment:**
-    * **Google Chrome:** Ensure you are using a recent version of Google Chrome that supports the `window.LanguageModel` API (preferably Chrome 138 or newer).
-    * **Enable Flags (if needed):** Navigate to `chrome://flags`. Search for flags related to "Experimental AI", "On-Device Model", or similar terms, and ensure they are enabled if the API isn't active by default. The exact flag names can change, so refer to recent Chrome developer resources if unsure.
-2.  **Apps Script Project:**
-    * Create a new Google Apps Script project.
-    * Copy the content of `Code.gs`, `Sidebar.html`, and `appsscript.json` into the corresponding files in your Apps Script project.
-3.  **Deployment (for testing):**
-    * In the Apps Script editor, go to "Deploy" > "New deployment".
-    * Select type: "Editor Add-on".
-    * Provide a description and click "Deploy".
-    * Authorize the script's required permissions.
-4.  **Installation (for testing deployed version):**
-    * Use the Add-on ID from the deployment to install it for your account, or run directly from the Apps Script editor for development by selecting `onOpen` and running it, then opening a Google Doc, Sheet, or Slide.
+### 1. Environment Setup
 
-## 📖 How to Use (the Demo Add-on)
+* **Google Chrome:** Ensure you are using a recent version of Google Chrome that supports the `window.LanguageModel` API (preferably Chrome 138 or newer).
+* **Enable Experimental Flags & Download Model:**
+    1.  Open `chrome://flags/#prompt-api-for-gemini-nano` in Chrome, select 'Enabled', and relaunch.
+    2.  Open `chrome://flags/#optimization-guide-on-device-model`, select 'Enabled BypassPrefRequirement', and relaunch Chrome.
+    3.  After relaunching, the on-device model needs to be downloaded.
+        * You can try to trigger the download by navigating to `chrome://components`, finding "Optimization Guide On Device Model" (if listed), and clicking "Check for update".
+        * **If the above doesn't work or the component isn't visible:** Open Chrome DevTools (right-click > Inspect > Console) and run the following JavaScript. This actively tries to initialize the model and will show download progress in the console:
+            ```javascript
+            const session = await LanguageModel.create({
+              monitor(m) {
+                m.addEventListener("downloadprogress", (e) => {
+                  console.log(`Downloaded ${e.loaded} of ${e.total} bytes.`);
+                });
+              },
+            });
+            ```
+        * Wait for the console to indicate the download is complete or the model is ready.
 
-1.  **Open the Add-on:** In a Google Document, Sheet, or Slide, find the add-on menu (e.g., "Gemini Diagram Showcase") and select the option to show the sidebar.
+### 2. Apps Script Project Setup
+
+* Create a new Google Apps Script project.
+* Copy the content of `Code.gs`, `Sidebar.html`, and `appsscript.json` into the corresponding files in your Apps Script project.
+
+### 3. Testing the Add-on
+
+Follow these steps to test the add-on using a test deployment[cite: 1]:
+
+#### Create a test deployment [cite: 1]
+
+A test deployment is the combination of an add-on and a test document[cite: 1]. Once you have a script version developed and would like to test it as an add-on, follow these steps[cite: 1]:
+
+1.  If you don’t have one already, create a spreadsheet, document, presentation, or form to test the add-on with[cite: 1].
+2.  Open the script project containing your add-on[cite: 1].
+3.  Click **Deploy** > **Test deployments**[cite: 1].
+4.  Next to **Select type**, click Enable deployment types and select **Editor add-on**[cite: 1].
+5.  Click **Create new test** or **Add test**[cite: 1].
+6.  Choose a code version or select **Latest Code**[cite: 1].
+7.  In the **Config** section, select the initial authorization state for the test[cite: 1].
+8.  Under **Test document**, click **No document selected**[cite: 1]. Select the Sheets, Docs, Slides, or Forms file you want to use to test the add-on and click **Insert**[cite: 1].
+9.  Click **Save test**[cite: 1].
+
+All saved test deployments appear in the **Test deployments** dialog[cite: 1]. This lets you revisit the same test deployment later on[cite: 1].
+
+#### Run a test deployment [cite: 1]
+
+If you have one or more saved test deployments, you can run one of them by following these steps[cite: 1]:
+
+1.  Open the script project containing your add-on[cite: 1].
+2.  Click **Deploy** > **Test deployments**[cite: 1].
+3.  Under **Saved Tests**, select the radio button next to the saved test deployment you want to run and click **Execute**[cite: 1].
+
+The test document opens in a new tab[cite: 1]. The add-on is in the authorization state specified in the test deployment[cite: 1]. You can verify that the add-on functions as intended by interacting with its menu and UI elements[cite: 1].
+
+#### Testing details [cite: 1]
+
+There are a number of things to keep in mind while testing Editor add-ons this way[cite: 1]:
+
+* Installable triggers aren't supported when testing[cite: 1]. Functionality that depends on installable triggers is not testable[cite: 1].
+* While running a test deployment that’s set to test with the latest code, you can see changes saved to the add-on script by refreshing the test document[cite: 1].
+* The test document has a URL that you can share with editors of the original test document[cite: 1]. This way, you can more easily collaborate with others while testing and developing[cite: 1].
+* If your add-on uses the Properties service, properties persist and remain available the next time the test deployment is run[cite: 1].
+* In addition, any test deployment that uses the same combination of add-on and test document has access to the same property information[cite: 1]. For example, if you create two test deployments, the properties saved while running the first are available while running the second and vice versa, but only if the deployments use the same script and test document[cite: 1].
+* If you run a test deployment, you might be prompted for authorization if you have not run the script before[cite: 1]. Be aware that authorizing a script while testing also authorizes the script outside of testing[cite: 1].
+
+## 📖 How to Use (the Demo Add-on after Setup & Testing)
+
+1.  **Open the Add-on:** Once the add-on is running in your test document (as per the testing steps above), find the add-on menu (e.g., "Gemini Diagram Showcase" or the name defined in your `Code.gs`) and select the option to show the sidebar.
 2.  **Check AI Model Status:** The sidebar will indicate the Gemini Nano model's status (e.g., "AI is ready," "AI model is downloading...", "Built-in AI (LanguageModel API) is not available..."). If downloading, please wait for it to complete.
 3.  **Generate/Edit/Fix Diagram:** Use the input fields and buttons in the sidebar to describe, generate, edit, or fix MermaidJS diagrams.
 4.  **Insert Diagram:** Click "Insert Diagram into Document" to place the diagram as an image into your active Google Workspace file.
@@ -108,7 +161,7 @@ This project is a demonstration Google Workspace Editor add-on. To use or test i
 
 * **Prompt API Documentation (Chrome for Developers):** [https://developer.chrome.com/docs/extensions/ai/prompt-api](https://developer.chrome.com/docs/extensions/ai/prompt-api)
 * **People + AI Guidebook:** For best practices in designing with AI. (https://pair.withgoogle.com/guidebook/)
-* **Prompt API GitHub (Explainer & Issues):** (https://github.com/webmachinelearning/prompt-api) or the newer explainer link if available from the docs.
+* **Prompt API GitHub (Explainer & Issues):** (https://github.com/explainers-by-googlers/prompt-api/) or (https://github.com/webmachinelearning/prompt-api)
 * **MermaidJS Official Documentation:** [https://mermaid.js.org/](https://mermaid.js.org/)
 * **Participate & Share Feedback:**
     * For feedback on Chrome's implementation: File a bug report or feature request via the Chromium issue tracker.
