@@ -6,7 +6,7 @@ This repository demonstrates the capabilities of the experimental **Chrome Gemin
 
 ## **🛠️ Core Technologies in this Demonstrator**
 
-* **Chrome Gemini Nano Prompt API (`window.LanguageModel`):** The core AI engine, running on-device in Chrome.  
+* **Chrome Gemini Nano Prompt API (`LanguageModel`):** The core AI engine, running on-device in Chrome.  
 * **Google Apps Script:** Provides the add-on framework, UI elements (sidebar, menus), and server-side functions for image insertion.  
 * **MermaidJS:** Renders text-based diagram definitions into visual diagrams.  
 * **HTML, CSS, JavaScript:** For the add-on's sidebar user interface and client-side logic.
