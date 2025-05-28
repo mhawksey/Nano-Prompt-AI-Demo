@@ -39,7 +39,6 @@
       margin-top: 5px;
     }
 
-    /* Container for the fix button */
     label {
       font-weight: bold;
       margin-bottom: 3px;
@@ -60,6 +59,23 @@
     .input-group input[type="number"] {
       width: 70px;
     }
+
+    #image-preview {
+      max-width: 98%;
+      max-height: 200px;
+      margin-top: 5px;
+      margin-bottom: 10px;
+      border: 1px solid #ddd;
+      display: none; /* Hidden by default */
+    }
+    .input-section {
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #eee;
+    }
+    .input-section:last-child {
+        border-bottom: none;
+    }
   </style>
 </head>
 
@@ -69,10 +85,18 @@
     <button id="fix-diagram-btn" onclick="fixDiagramWithAI()" style="display:none; background-color: #ffae42; color: black;">Fix Diagram with AI</button>
   </div>
   <div id="info-message" style="color:blue;"></div>
-  <div>
+
+  <div class="input-section">
     <label for="prompt-input">Describe your diagram (AI will generate Mermaid code):</label>
     <textarea id="prompt-input" rows="4" placeholder="e.g., A simple flow chart with a start, a process, and an end."></textarea>
     <button id="generate-from-prompt-btn" onclick="generateFromPrompt()">Generate Diagram from Description</button>
+  </div>
+
+  <div class="input-section">
+    <label for="image-upload-input">Or upload an image/sketch of your diagram:</label>
+    <input type="file" id="image-upload-input" accept="image/*" onchange="previewImage(event)">
+    <img id="image-preview" src="#" alt="Image Preview"/>
+    <button id="generate-from-image-btn" onclick="generateFromImage()">Generate Diagram from Image</button>
   </div>
 
   <hr>
@@ -92,22 +116,41 @@
   <div id="mermaid-diagram">
   </div>
 
-
-
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
   <script>
-    let languageModelSession; // Stores the LanguageModel session
-    let mermaidInitialized = false; // Track Mermaid initialization
-    let currentMermaidError = ''; // To store the latest Mermaid rendering error message
+    let languageModelSession;
+    let mermaidInitialized = false;
+    let currentMermaidError = '';
+    let uploadedImageFile = null;
 
-     // --- Global AI Parameters ---
-    let globalTemperature = 0.3; 
-    let globalTopK = 1; 
-    // --- End Global AI Parameters ---
+    let globalTemperature = 0.3;
+    let globalTopK = 1;
 
-    /**
-     * Initializes Mermaid.
-     */
+    // --- System Prompts ---
+    // Using the original system prompt for text-to-MermaidJS as a base.
+    // The multimodal model should adapt if an image is also provided.
+    const systemPromptForDiagramGeneration = `You are an expert in MermaidJS. Convert the user's natural language description or the concepts depicted in an uploaded image into valid MermaidJS markdown code. Output ONLY the MermaidJS code block itself. Do NOT include any explanatory text, greetings, apologies, or markdown fences like \\\`\\\`\\\`mermaid or \\\`\\\`\\\`. Your entire response should be directly usable as MermaidJS code.
+Here's a condensed reference for Mermaid flowchart syntax:\n\n**Flowchart Syntax Reference:**\n\n---\n\nFlowcharts are composed of **nodes** (geometric shapes) and **edges** (arrows or lines).\n\n### **Node Definition**\n\nNodes are defined by an id and text. The id is for internal reference, and the text is what is displayed in the flowchart.\n\n### **A node with text**\n\nIt is also possible to set text in the box that differs from the id. If this is done several times, it is the last text found for the node that will be used. Also if you define edges for the node later on, you can omit text definitions. The one previously defined will be used when rendering the box.\n\n\\\`\\\`\\\`\n---\ntitle: Node with text\n---\nflowchart LR\n    id1[This is the text in the box]\n\\\`\\\`\\\`\n\n#### **Unicode text**\n\nUse \`"\` to enclose the unicode text.\n\n\\\`\\\`\\\`\nflowchart LR\n    id["This 笶､ Unicode"]\n\\\`\\\`\\\`\n\n#### **Markdown formatting**\n\nUse double quotes and backticks "\\\` text \\\`" to enclose the markdown text.\n\n\\\`\\\`\\\`\n---\nconfig:\n  flowchart:\n    htmlLabels: false\n---\nflowchart LR\n    markdown["\\\`This **is** _Markdown_\\\`"]\n    newLines["\\\`Line1\n    Line 2\n    Line 3\\\`"]\n    markdown --> newLines\n\\\`\\\`\\\`\n\n### **Node Shapes**\n\n* **Round edges**: id(text)  \n* **Stadium**: id(\\[text\\])  \n* **Subroutine**: id\\[\\[text\\]\\]  \n* **Cylindrical (Database)**: id\\[(text)\\]  \n* **Circle**: id((text))  \n* **Asymmetric**: id\\>text\\]  \n* **Rhombus (Decision)**: id{text}  \n* **Hexagon**: id{{text}}  \n* **Parallelogram**: id\\[/text/\\]  \n* **Parallelogram Alt**: id\\[\\\\text\\\\\\]  \n* **Trapezoid**: id\\[/text\\\\\\]  \n* **Trapezoid Alt**: id\\[\\\\text/\\]  \n* **Double Circle**: id(((text)))\n\n### **Flowchart Direction**\n\nDeclare the direction of the flowchart:\n\n* flowchart TD (Top to bottom) or flowchart TB  \n* flowchart LR (Left to right)  \n* flowchart BT (Bottom to top)  \n* flowchart RL (Right to left)\n\n### **Links Between Nodes**\n\nNodes are connected with links (edges).\n\n* **Arrow head**: A--\\>B  \n* **Open link**: A --- B  \n* **Text on links**: A-- text ---B or A---|text|B  \n* **Arrow head and text**: A--\\>|text|B or A-- text --\\>B  \n* **Dotted link**: A-.- \\>B  \n* **Dotted link with text**: A-. text .-\\> B  \n* **Thick link**: A ==\\> B  \n* **Thick link with text**: A == text ==\\> B  \n* **Invisible link**: A ~~~ B  \n* **Chaining links**: A -- text --\\> B -- text2 --\\> C or a --\\> b & c--\\> d  \n* **Multi-node links**: A & B--\\> C & D  \n* **Attaching ID to Edges**: A e1@--\\> B. Use e1@{ animate: true } or e1@{ animation: fast } for animations.  \n* **New arrow types**:  \n  * Circle edge: A --o B  \n  * Cross edge: A --x B  \n* **Multi-directional arrows**: A o--o B, B <--> C, C x--x D  \n* **Minimum link length**: Add extra dashes (-, =, .) to links. A ----\\> E makes the link longer.\n\n### **Special Characters**\n\nEnclose text in quotes for problematic characters: id1["This is the (text) in the box"].  \nUse entity codes: A["A double quote:\\#quot;"].\n\n### **Subgraphs**\n\nGroup nodes into subgraphs:\n\nsubgraph title  \n    graph definition  \nend\n\nEdges can connect to and from subgraphs. Subgraphs can also have their own direction statement. However, if any of a subgraph's nodes are linked externally, the subgraph's direction is ignored.\n\n### **Comments**\n\nComments can be entered within a flow diagram, which will be ignored by the parser. Comments need to be on their own line, and must be prefaced with \`%%\` (double percent signs). Any text after the start of the comment to the next newline will be treated as a comment, including any flow syntax\n\n\\\`\\\`\\\`\nflowchart LR\n%% this is a comment A -- text --> B{node}\n   A -- text --> B -- text2 --> C\n\\\`\\\`\\\`\n\n### **Configuration**\n\n* **Renderer**: defaultRenderer: "elk" for the elk renderer (v9.4+).  \n* **Width**: Set mermaid.flowchartConfig = { width: 100% }\n\n**Examples (for text input):**\n\n**User Input:** Create a flowchart that starts with "Begin" (rounded edges), then goes to "Decision Point" (rhombus) with two paths: "Yes" leading to "Process A", and "No" leading to "Process B". Both Process A and Process B then connect to an "End" node (stadium shape). The flowchart should flow from top to bottom.\n\n**Expected Output:**\n\nflowchart TD\n    A(Begin)\n    B{Decision Point}\n    C[Process A]\n    D[Process B]\n    E([End])\n\n    A --> B\n    B -- Yes --> C\n    B -- No --> D\n    C --> E\n    D --> E\n\n**Example (for image input):**\nIf an image depicts a simple sequence: Object A points to Object B, which points to Object C.\n**Expected Output (conceptual):**\nflowchart LR\n    A --> B\n    B --> C\n`;
+    // --- End System Prompts ---
+
+
+    function previewImage(event) {
+      const reader = new FileReader();
+      const imagePreview = document.getElementById('image-preview');
+      reader.onload = function(){
+        imagePreview.src = reader.result;
+        imagePreview.style.display = 'block';
+      }
+      if (event.target.files[0]) {
+        uploadedImageFile = event.target.files[0];
+        reader.readAsDataURL(event.target.files[0]);
+      } else {
+        uploadedImageFile = null;
+        imagePreview.src = '#';
+        imagePreview.style.display = 'none';
+      }
+    }
+
     function initializeMermaid() {
       if (!mermaidInitialized) {
         try {
@@ -123,109 +166,110 @@
       }
     }
 
-    /**
-     * Initializes the LanguageModel session for AI-powered diagram generation.
-     */
     async function initializeLanguageModel() {
       const promptButton = document.getElementById('generate-from-prompt-btn');
-      const fixButton = document.getElementById('fix-diagram-btn');
+      const imageButton = document.getElementById('generate-from-image-btn');
       const errorMessageDiv = document.getElementById('error-message');
       const infoMessageDiv = document.getElementById('info-message');
-      // Don't clear error message here as it might contain a rendering error we want to fix
-      // errorMessageDiv.textContent = '';
-      // infoMessageDiv.textContent = ''; // Keep info message if it's about downloading
 
       if (typeof LanguageModel === "undefined") {
         errorMessageDiv.textContent = 'Built-in AI (LanguageModel API) is not available in this browser. You can still manually enter Mermaid code.';
         console.warn('LanguageModel API not available.');
         if (promptButton) promptButton.disabled = true;
-        // if (fixButton) fixButton.disabled = true; // Fix button availability depends on rendering errors
+        if (imageButton) imageButton.disabled = true;
         return false;
       }
 
       try {
-        const availability = await LanguageModel.availability();
-        if (availability !== "available" && infoMessageDiv.textContent.indexOf('download') === -1) { // Avoid overwriting download progress
+        // Initialize for multimodal to support images. This session should also handle text.
+        const availability = await LanguageModel.availability({expectedInputs:[{type:'image'}]});
+        if (availability !== "available" && infoMessageDiv.textContent.indexOf('download') === -1) {
             infoMessageDiv.textContent = `AI Model Status: ${availability}`;
         }
-
 
         if (availability === "unavailable") {
           errorMessageDiv.textContent = 'AI features are unavailable on this device. Manual code entry is still available.';
           if (promptButton) promptButton.disabled = true;
-          // if (fixButton) fixButton.disabled = true;
+          if (imageButton) imageButton.disabled = true;
           return false;
         }
 
         if (availability === "downloadable" || availability === "downloading") {
-          if (infoMessageDiv.textContent.indexOf('download progress') === -1) { // Only set if not already showing progress
+          if (infoMessageDiv.textContent.indexOf('download progress') === -1) {
              infoMessageDiv.textContent = "AI model is downloading or needs to be downloaded. Please wait... Initialization might take a moment.";
           }
         }
-        
-        if (languageModelSession && (await languageModelSession.inputQuota > 0)) {
-            console.log("LanguageModel session already exists and seems valid.");
-            if (infoMessageDiv.textContent.indexOf('download') === -1 && infoMessageDiv.textContent.indexOf('AI is ready') === -1) {
-                 infoMessageDiv.textContent = "AI is ready.";
+
+        if (languageModelSession) {
+            try {
+                const currentQuota = await languageModelSession.inputQuota;
+                 if (currentQuota > 0) {
+                    console.log("LanguageModel session already exists and seems valid.");
+                    if (infoMessageDiv.textContent.indexOf('download') === -1 && infoMessageDiv.textContent.indexOf('AI is ready') === -1) {
+                         infoMessageDiv.textContent = "AI is ready.";
+                    }
+                    if (promptButton) promptButton.disabled = false;
+                    if (imageButton) imageButton.disabled = false;
+                    return true;
+                 }
+            } catch (e) {
+                console.warn("Error checking existing session quota, will reinitialize:", e);
+                languageModelSession = null;
             }
-            if (promptButton) promptButton.disabled = false;
-            return true;
         }
 
-          const sessionOptions = { // 👈 An options object is created
+        const sessionOptions = {
+          expectedInputs:[{type: 'image'}], // Critical for image support
           initialPrompts: [{
             role: "system",
-            content: `You are an expert in MermaidJS. Convert the user's natural language description into valid MermaidJS markdown code. Output ONLY the MermaidJS code block itself. Do NOT include any explanatory text, greetings, apologies, or markdown fences like \\\`\\\`\\\`mermaid or \\\`\\\`\\\`. Your entire response should be directly usable as MermaidJS code. Here's a condensed reference for Mermaid flowchart syntax:\n\n**Flowchart Syntax Reference:**\n\n---\n\nFlowcharts are composed of **nodes** (geometric shapes) and **edges** (arrows or lines).\n\n### **Node Definition**\n\nNodes are defined by an id and text. The id is for internal reference, and the text is what is displayed in the flowchart.\n\n### **A node with text**\n\nIt is also possible to set text in the box that differs from the id. If this is done several times, it is the last text found for the node that will be used. Also if you define edges for the node later on, you can omit text definitions. The one previously defined will be used when rendering the box.\n\n\\\`\\\`\\\`\n---\ntitle: Node with text\n---\nflowchart LR\n    id1[This is the text in the box]\n\\\`\\\`\\\`\n\n\\\`\\\`\\\`\n---\ntitle: Node with text\n---\nflowchart LR\n    id1[This is the text in the box]\n\\\`\\\`\\\`\n\n#### **Unicode text**\n\nUse \`"\` to enclose the unicode text.\n\n\\\`\\\`\\\`\nflowchart LR\n    id["This ❤ Unicode"]\n\\\`\\\`\\\`\n\n\\\`\\\`\\\`\nflowchart LR\n    id["This ❤ Unicode"]\n\\\`\\\`\\\`\n\n#### **Markdown formatting**\n\nUse double quotes and backticks "\\\` text \\\`" to enclose the markdown text.\n\n\\\`\\\`\\\`\n---\nconfig:\n  flowchart:\n    htmlLabels: false\n---\nflowchart LR\n    markdown["\\\`This **is** _Markdown_\\\`"]\n    newLines["\\\`Line1\n    Line 2\n    Line 3\\\`"]\n    markdown --> newLines\n\\\`\\\`\\\`\n\n\\\`\\\`\\\`\n---\nconfig:\n  flowchart:\n    htmlLabels: false\n---\nflowchart LR\n    markdown["\\\`This **is** _Markdown_\\\`"]\n    newLines["\\\`Line1\n    Line 2\n    Line 3\\\`"]\n    markdown --> newLines\n\\\`\\\`\\\`\n\n### **Node Shapes**\n\n* **Round edges**: id(text)  \n* **Stadium**: id(\\[text\\])  \n* **Subroutine**: id\\[\\[text\\]\\]  \n* **Cylindrical (Database)**: id\\[(text)\\]  \n* **Circle**: id((text))  \n* **Asymmetric**: id\\>text\\]  \n* **Rhombus (Decision)**: id{text}  \n* **Hexagon**: id{{text}}  \n* **Parallelogram**: id\\[/text/\\]  \n* **Parallelogram Alt**: id\\[\\\\text\\\\\\]  \n* **Trapezoid**: id\\[/text\\\\\\]  \n* **Trapezoid Alt**: id\\[\\\\text/\\]  \n* **Double Circle**: id(((text)))\n\n### **Flowchart Direction**\n\nDeclare the direction of the flowchart:\n\n* flowchart TD (Top to bottom) or flowchart TB  \n* flowchart LR (Left to right)  \n* flowchart BT (Bottom to top)  \n* flowchart RL (Right to left)\n\n### **Links Between Nodes**\n\nNodes are connected with links (edges).\n\n* **Arrow head**: A--\\>B  \n* **Open link**: A --- B  \n* **Text on links**: A-- text ---B or A---|text|B  \n* **Arrow head and text**: A--\\>|text|B or A-- text --\\>B  \n* **Dotted link**: A-.- \\>B  \n* **Dotted link with text**: A-. text .-\\> B  \n* **Thick link**: A ==\\> B  \n* **Thick link with text**: A == text ==\\> B  \n* **Invisible link**: A ~~~ B  \n* **Chaining links**: A -- text --\\> B -- text2 --\\> C or a --\\> b & c--\\> d  \n* **Multi-node links**: A & B--\\> C & D  \n* **Attaching ID to Edges**: A e1@--\\> B. Use e1@{ animate: true } or e1@{ animation: fast } for animations.  \n* **New arrow types**:  \n  * Circle edge: A --o B  \n  * Cross edge: A --x B  \n* **Multi-directional arrows**: A o--o B, B <--> C, C x--x D  \n* **Minimum link length**: Add extra dashes (-, =, .) to links. A ----\\> E makes the link longer.\n\n### **Special Characters**\n\nEnclose text in quotes for problematic characters: id1["This is the (text) in the box"].  \nUse entity codes: A["A double quote:\\#quot;"].\n\n### **Subgraphs**\n\nGroup nodes into subgraphs:\n\nsubgraph title  \n    graph definition  \nend\n\nEdges can connect to and from subgraphs. Subgraphs can also have their own direction statement. However, if any of a subgraph's nodes are linked externally, the subgraph's direction is ignored.\n\n### **Comments**\n\nComments can be entered within a flow diagram, which will be ignored by the parser. Comments need to be on their own line, and must be prefaced with \`%%\` (double percent signs). Any text after the start of the comment to the next newline will be treated as a comment, including any flow syntax\n\n\\\`\\\`\\\`\nflowchart LR\n%% this is a comment A -- text --> B{node}\n   A -- text --> B -- text2 --> C\n\\\`\\\`\\\`\n\n\\\`\\\`\\\`\nflowchart LR\n%% this is a comment A -- text --> B{node}\n   A -- text --> B -- text2 --> C\n\\\`\\\`\\\`\n\n### **Configuration**\n\n* **Renderer**: defaultRenderer: "elk" for the elk renderer (v9.4+).  \n* **Width**: Set mermaid.flowchartConfig = { width: 100% }\n\n**Examples:**\n\n**User Input:** Create a flowchart that starts with "Begin" (rounded edges), then goes to "Decision Point" (rhombus) with two paths: "Yes" leading to "Process A", and "No" leading to "Process B". Both Process A and Process B then connect to an "End" node (stadium shape). The flowchart should flow from top to bottom.\n\n**Expected Output:**\n\n\\\`\\\`\\\`\nflowchart TD\n    A(Begin)\n    B{Decision Point}\n    C[Process A]\n    D[Process B]\n    E([End])\n\n    A --> B\n    B -- Yes --> C\n    B -- No --> D\n    C --> E\n    D --> E\n\\\`\\\`\\\`\n\n**User Input:** The process begins at the "START" node when a "Customer Initiates Return" request is received. This could be in-store or online. The first step is to "Receive Returned Item and Original Request Details" from the customer. Next, a crucial decision point occurs: "Proof of Purchase Provided?". If "Yes" (the customer provides valid proof of purchase like a receipt or order confirmation): The process moves to "Verify Proof of Purchase." Following verification, another decision point is "Item Condition Acceptable?". This involves inspecting the returned goods for damage, use, or adherence to return policy timelines. If "Yes" (the item is in acceptable condition): The process proceeds to "Determine Return Type (Refund, Exchange, Store Credit)" based on policy and customer preference. Then, "Process Refund/Exchange/Store Credit." The next step is to "Update Inventory System" to reflect the returned item. Finally, "Notify Customer of Return Completion," and the process moves to the "END" node. If "No" (the item is not in acceptable condition): The process moves to "Inform Customer Item Cannot Be Accepted (with reason)." Then, "Offer Alternative (e.g., partial credit, return to customer)," if applicable by policy. The process then proceeds to the "END" node. If "No" (the customer does not provide proof of purchase): The process moves to a decision point: "Can Purchase Be Verified via Other Means (e.g., loyalty account, order history look-up)?". If "Yes" (purchase can be verified): The flow loops back to the "Item Condition Acceptable?" decision point (as if proof was initially provided, but now verified). If "No" (purchase cannot be verified): The process moves to "Check Policy for Returns Without Proof of Purchase." Another decision point: "Eligible for Exception (e.g., store credit, exchange only)?". If "Yes": The process proceeds to "Offer Approved Exception (e.g., Store Credit, Exchange for item of same value)." Then, "Process Approved Exception." "Update Inventory System (if applicable)." "Notify Customer of Resolution," and the process moves to the "END" node. If "No": The process moves to "Inform Customer Return Cannot Be Processed Without Proof." The process then proceeds to the "END" node. All paths eventually lead to an "END" node, signifying the completion of the return interaction for that specific request.\n\n**Expected Output:**\n\n\\\`\\\`\\\`\nflowchart TD\n    A(["Customer Initiates Return"])\n    A --> B["Receive Returned Item and Original Request Details"]\n    B --> C{"Proof of Purchase Provided?"}\n    \n    C -->|Yes| D["Verify Proof of Purchase"]\n    C -->|No| G{"Can Purchase Be Verified via Other Means?"}\n    \n    D --> E{"Item Condition Acceptable?"}\n    \n    E -->|Yes| F["Determine Return Type (Refund, Exchange, Store Credit)"]\n    F --> H["Process Refund/Exchange/Store Credit"]\n    H --> I["Update Inventory System"]\n    I --> J["Notify Customer of Return Completion"]\n    J --> K(["END"])\n    \n    E -->|No| L["Inform Customer Item Cannot Be Accepted"]\n    L --> M["Offer Alternative"]\n    M --> K\n    \n    G -->|Yes| E\n    G -->|No| N["Check Policy for Returns Without Proof of Purchase"]\n    \n    N --> O{"Eligible for Exception?"}\n    \n    O -->|Yes| P["Offer Approved Exception"]\n    P --> Q["Process Approved Exception"]\n    Q --> R["Update Inventory System"]\n    R --> S["Notify Customer of Resolution"]\n    S --> K\n    \n    O -->|No| T["Inform Customer Return Cannot Be Processed Without Proof"]\n    T --> K\n\\\`\\\`\\\`\n`// (your system prompt)
+            content: systemPromptForDiagramGeneration
           }],
           monitor(m) {
             m.addEventListener("downloadprogress", e => {
-              infoMessageDiv.textContent = `AI model download progress: ${Math.round(e.loaded * 100)}%`;
-              console.log(`AI Model Downloaded ${e.loaded * 100}%`);
+              const progress = e.total ? Math.round(e.loaded / e.total * 100) : e.loaded; // Handle cases where total might be 0
+              infoMessageDiv.textContent = `AI model download progress: ${progress}%`;
+              console.log(`AI Model Downloaded ${progress}%`);
             });
           }
         };
 
-        // 👇 THIS IS WHERE THE GLOBALS ARE USED
         if (globalTemperature !== undefined) {
-          sessionOptions.temperature = globalTemperature; // Added to options if defined
+          sessionOptions.temperature = globalTemperature;
           console.log(`Using globalTemperature: ${globalTemperature}`);
         }
         if (globalTopK !== undefined) {
-          sessionOptions.topK = globalTopK; // Added to options if defined
+          sessionOptions.topK = globalTopK;
           console.log(`Using globalTopK: ${globalTopK}`);
         }
 
-        // 👇 Now sessionOptions (potentially with temperature/topK) is passed
         languageModelSession = await LanguageModel.create(sessionOptions);
-        console.log("LanguageModel session created successfully.");
-        infoMessageDiv.textContent = "AI is ready. Describe your diagram!";
+        console.log("LanguageModel session created successfully (multimodal ready).");
+        infoMessageDiv.textContent = "AI is ready. Describe your diagram or upload an image!";
         if (promptButton) promptButton.disabled = false;
+        if (imageButton) imageButton.disabled = false;
         return true;
 
       } catch (error) {
         console.error("Failed to initialize LanguageModel session:", error);
         errorMessageDiv.textContent = 'Error initializing AI: ' + error.message + '. Manual code entry is still available.';
         if (promptButton) promptButton.disabled = true;
-        // if (fixButton) fixButton.disabled = true;
+        if (imageButton) imageButton.disabled = true;
         return false;
       }
     }
 
-    /**
-     * Generates MermaidJS code from the user's description using the LanguageModel API.
-     */
     async function generateFromPrompt() {
-      const promptInput = document.getElementById('prompt-input').value;
+      const promptInputText = document.getElementById('prompt-input').value;
       const mermaidCodeTextarea = document.getElementById('mermaid-code');
       const errorMessageDiv = document.getElementById('error-message');
       const infoMessageDiv = document.getElementById('info-message');
       const promptButton = document.getElementById('generate-from-prompt-btn');
 
-      errorMessageDiv.textContent = ''; 
+      errorMessageDiv.textContent = '';
       infoMessageDiv.textContent = '';
-      document.getElementById('fix-diagram-btn').style.display = 'none'; // Hide fix button on new generation
+      document.getElementById('fix-diagram-btn').style.display = 'none';
 
-      if (!promptInput.trim()) {
+      if (!promptInputText.trim()) {
         errorMessageDiv.textContent = 'Please enter a description for the diagram.';
         return;
       }
@@ -238,16 +282,17 @@
            return;
         }
         infoMessageDiv.textContent = 'AI initialized. Please try generating again.';
-        // Don't return here, proceed with the generation if init was successful
       }
-      
+
       promptButton.disabled = true;
       promptButton.textContent = 'Generating...';
       infoMessageDiv.textContent = 'AI is thinking...';
 
       try {
-        const result = await languageModelSession.prompt(promptInput);
-        console.log("Raw AI Response (Generate):", result);
+        // For text prompt, we just send the text.
+        // The session was initialized to handle images, but should also process text-only prompts.
+        const result = await languageModelSession.prompt(promptInputText);
+        console.log("Raw AI Response (Generate from Prompt):", result);
 
         let finalCode = result.trim();
         const mermaidBlockRegex = /```(?:mermaid)?\s*([\s\S]*?)\s*```/;
@@ -255,40 +300,184 @@
 
         if (match && match[1]) {
           finalCode = match[1].trim();
-          console.log("Extracted from markdown block (Generate):", finalCode);
+          console.log("Extracted from markdown block (Generate from Prompt):", finalCode);
         } else {
-            console.log("Using direct AI response (Generate, assuming raw code):", finalCode);
+            console.log("Using direct AI response (Generate from Prompt, assuming raw code):", finalCode);
         }
-        
+
         const validStartRegex = /^(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram|journey|gantt|pie|mindmap|timeline|C4Context|C4Container|C4Component|C4Dynamic|C4Deployment)/i;
-        if (!validStartRegex.test(finalCode.substring(0,100))) { 
-            console.warn("AI output might not be valid MermaidJS code. It doesn't start with a known diagram type.", finalCode);
-            infoMessageDiv.textContent = "AI response might not be valid Mermaid code. Please check the output.";
+        if (!validStartRegex.test(finalCode.substring(0,100))) {
+            console.warn("AI output (from prompt) might not be valid MermaidJS code.", finalCode);
+            infoMessageDiv.textContent = "AI response (from prompt) might not be valid Mermaid code. Please check the output.";
         }
 
         mermaidCodeTextarea.value = finalCode;
-        renderDiagram(); 
-        if (!document.getElementById('error-message').textContent.includes("Mermaid syntax error")) { // Only show success if no immediate render error
+        renderDiagram();
+        if (!document.getElementById('error-message').textContent.includes("Mermaid syntax error")) {
             infoMessageDiv.textContent = 'Diagram code generated from description!';
         }
       } catch (error) {
-        console.error("Error prompting LanguageModel (Generate):", error);
+        console.error("Error prompting LanguageModel (Generate from Prompt):", error);
         let errorDetail = error.message;
         if (error.name === 'QuotaExceededError') {
             errorDetail = `The diagram description might be too long or complex for the AI. (Quota: ${error.quota}, Requested: ${error.requested})`;
         }
         mermaidCodeTextarea.value = `%% Error generating diagram from prompt: ${errorDetail}\n%% Please check your description or try again.\n\n${mermaidCodeTextarea.value}`;
-        errorMessageDiv.textContent = 'Error generating diagram: ' + errorDetail;
-        renderDiagram(); // Render to show the error comment in preview if possible
+        errorMessageDiv.textContent = 'Error generating diagram from prompt: ' + errorDetail;
+        renderDiagram();
       } finally {
         promptButton.disabled = false;
         promptButton.textContent = 'Generate Diagram from Description';
       }
     }
 
-    /**
-     * NEW: Attempts to fix the current MermaidJS code using AI based on the last rendering error.
-     */
+
+    async function generateFromImage() {
+      console.log("generateFromImage: Called.");
+      const mermaidCodeTextarea = document.getElementById('mermaid-code');
+      const errorMessageDiv = document.getElementById('error-message');
+      const infoMessageDiv = document.getElementById('info-message');
+      const imageButton = document.getElementById('generate-from-image-btn');
+
+      errorMessageDiv.textContent = '';
+      infoMessageDiv.textContent = '';
+      document.getElementById('fix-diagram-btn').style.display = 'none';
+
+      if (!uploadedImageFile) {
+        errorMessageDiv.textContent = 'Please upload an image file first.';
+        console.log("generateFromImage: No image file uploaded.");
+        return;
+      }
+      console.log("generateFromImage: Uploaded image file details:", {
+        name: uploadedImageFile.name,
+        size: uploadedImageFile.size,
+        type: uploadedImageFile.type
+      });
+
+      if (!languageModelSession) {
+        infoMessageDiv.textContent = 'AI session not initialized. Attempting to initialize...';
+        console.log("generateFromImage: AI session not initialized. Calling initializeLanguageModel...");
+        const initialized = await initializeLanguageModel();
+        console.log("generateFromImage: initializeLanguageModel returned:", initialized);
+        if (!initialized || !languageModelSession) {
+           errorMessageDiv.textContent = 'AI session could not be initialized. Please ensure your browser supports built-in AI and try reloading. Manual code entry is still available.';
+           console.error("generateFromImage: AI session could not be initialized after attempt.");
+           return;
+        }
+        infoMessageDiv.textContent = 'AI initialized. Please try generating again.';
+         console.log("generateFromImage: AI initialized successfully.");
+      }
+
+      imageButton.disabled = true;
+      imageButton.textContent = 'Generating...';
+      infoMessageDiv.textContent = 'AI is analyzing the image...';
+      console.log("generateFromImage: AI is analyzing the image...");
+
+      let imageBitmap;
+      try {
+        console.log("generateFromImage: Attempting to create ImageBitmap from uploadedImageFile...");
+        imageBitmap = await createImageBitmap(uploadedImageFile);
+
+        if (imageBitmap) {
+          console.log("generateFromImage: ImageBitmap created successfully.", {
+            width: imageBitmap.width,
+            height: imageBitmap.height,
+            isImageBitmap: imageBitmap instanceof ImageBitmap
+          });
+          if (imageBitmap.width === 0 || imageBitmap.height === 0) {
+            console.error("generateFromImage: ImageBitmap has zero dimensions. This will likely fail.");
+            errorMessageDiv.textContent = 'Error: Could not process image (zero dimensions). Please try another image.';
+            imageButton.disabled = false;
+            imageButton.textContent = 'Generate Diagram from Image';
+            infoMessageDiv.textContent = '';
+            return;
+          }
+        } else {
+          console.error("generateFromImage: createImageBitmap returned null or undefined.");
+          errorMessageDiv.textContent = 'Error: Could not process image. Please try another image.';
+          imageButton.disabled = false;
+          imageButton.textContent = 'Generate Diagram from Image';
+          infoMessageDiv.textContent = '';
+          return;
+        }
+
+        // ****** MODIFICATION IS HERE ******
+        // Add role: "user" to both parts
+        const promptParts = [
+          { role: "user", type: "text", content: "Analyze the provided image and represent its structure or flow as MermaidJS code." },
+          { role: "user", type: "image", content: imageBitmap } // Also needs a role
+        ];
+        // **********************************
+
+        console.log("generateFromImage: Attempting to call languageModelSession.prompt() with structured parts including roles.");
+        // For cleaner logging, let's log the structure without the actual ImageBitmap object if it causes console clutter
+        console.log("generateFromImage: Prompt parts structure being sent:", [
+            { role: promptParts[0].role, type: promptParts[0].type, content: promptParts[0].content },
+            { role: promptParts[1].role, type: promptParts[1].type, content: "[ImageBitmap Object]" }
+        ]);
+
+
+        const result = await languageModelSession.prompt(promptParts); // This is line 297 in your log for the error
+        console.log("generateFromImage: Raw AI Response:", result);
+
+        let finalCode = result.trim();
+        const mermaidBlockRegex = /```(?:mermaid)?\s*([\s\S]*?)\s*```/;
+        const match = mermaidBlockRegex.exec(finalCode);
+
+        if (match && match[1]) {
+          finalCode = match[1].trim();
+          console.log("generateFromImage: Extracted from markdown block:", finalCode);
+        } else {
+            console.log("generateFromImage: Using direct AI response (assuming raw code):", finalCode);
+        }
+
+        const validStartRegex = /^(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram|journey|gantt|pie|mindmap|timeline|C4Context|C4Container|C4Component|C4Dynamic|C4Deployment)/i;
+        if (!validStartRegex.test(finalCode.substring(0,100))) {
+            console.warn("generateFromImage: AI output might not be valid MermaidJS code.", finalCode);
+            infoMessageDiv.textContent = "AI response (from image) might not be valid Mermaid code. Please check the output.";
+        }
+
+        mermaidCodeTextarea.value = finalCode;
+        renderDiagram();
+        if (!document.getElementById('error-message').textContent.includes("Mermaid syntax error")) {
+            infoMessageDiv.textContent = 'Diagram code generated from image!';
+            console.log("generateFromImage: Diagram code generated successfully from image.");
+        }
+      } catch (error) {
+        console.error("generateFromImage: Error during image processing or prompting. Error:", error);
+        if (imageBitmap) {
+            console.error("generateFromImage: ImageBitmap state at time of error:", {
+                width: imageBitmap.width,
+                height: imageBitmap.height,
+                isImageBitmap: imageBitmap instanceof ImageBitmap
+            });
+        } else {
+            console.error("generateFromImage: ImageBitmap was null or undefined at time of error.");
+        }
+        console.error("generateFromImage: Full error details - Name:", error.name, "Message:", error.message, "Stack:", error.stack);
+        
+        let errorDetail = error.message;
+        if (error.name === 'QuotaExceededError') {
+            errorDetail = `The image or request might be too complex for the AI. (Quota: ${error.quota}, Requested: ${error.requested})`;
+        } else if (error.name === 'TypeError' && error.message.includes("LanguageModelMessage")) {
+            errorDetail = "The AI model is having trouble understanding the format of the combined text and image. Please try a different image or simplify the request.";
+        } else if (error.name === 'TypeError' && error.message.includes("'role' property")) {
+            errorDetail = "There was an internal error forming the request for the AI (missing 'role'). This should be fixed.";
+        } else if (!imageBitmap) {
+            errorDetail = "Could not process the uploaded image before sending to AI.";
+        }
+
+
+        mermaidCodeTextarea.value = `%% Error generating diagram from image: ${errorDetail}\n%% Please try a different image or check the AI model status.\n\n${mermaidCodeTextarea.value}`;
+        errorMessageDiv.textContent = 'Error generating diagram from image: ' + errorDetail;
+        renderDiagram();
+      } finally {
+        console.log("generateFromImage: In finally block.");
+        imageButton.disabled = false;
+        imageButton.textContent = 'Generate Diagram from Image';
+      }
+    }
+
     async function fixDiagramWithAI() {
       const mermaidCodeTextarea = document.getElementById('mermaid-code');
       const currentCode = mermaidCodeTextarea.value;
@@ -309,7 +498,7 @@
         infoMessageDiv.textContent = 'AI session not initialized. Attempting to initialize...';
         const initialized = await initializeLanguageModel();
         if (!initialized || !languageModelSession) {
-           errorMessageDiv.textContent = 'AI session could not be initialized for fixing. Please ensure your browser supports built-in AI and try reloading.';
+           errorMessageDiv.textContent = 'AI session could not be initialized for fixing.';
            return;
         }
         infoMessageDiv.textContent = 'AI initialized. Retrying fix...';
@@ -318,7 +507,7 @@
       fixButton.disabled = true;
       fixButton.textContent = 'AI Fixing...';
       infoMessageDiv.textContent = 'AI is attempting to fix the diagram...';
-      errorMessageDiv.textContent = ''; // Clear old error, new one might appear from render
+      errorMessageDiv.textContent = '';
 
       const fixPrompt = `The following MermaidJS code produced an error.
 Error message: "${currentMermaidError}"
@@ -343,18 +532,17 @@ Please analyze the error and the code, then provide a corrected version of ONLY 
         } else {
           console.log("Using direct AI response (Fix, assuming raw code):", fixedCode);
         }
-        
+
         mermaidCodeTextarea.value = fixedCode;
         infoMessageDiv.textContent = 'AI provided a fix. Attempting to render...';
-        await renderDiagram(); // renderDiagram will handle showing new errors or success
+        await renderDiagram();
 
         if (!document.getElementById('error-message').textContent.includes("Mermaid syntax error")) {
              infoMessageDiv.textContent = 'AI fix applied and rendered successfully!';
-             fixButton.style.display = 'none'; // Hide if successful
-             currentMermaidError = ''; // Clear error as it's fixed
+             fixButton.style.display = 'none';
+             currentMermaidError = '';
         } else {
             infoMessageDiv.textContent = 'AI tried to fix, but there might still be an issue. See error below.';
-            // Fix button will be re-shown by renderDiagram if there's still an error
         }
 
       } catch (error) {
@@ -364,50 +552,40 @@ Please analyze the error and the code, then provide a corrected version of ONLY 
             errorDetail = `The code/error message might be too long for the AI to process for a fix. (Quota: ${error.quota}, Requested: ${error.requested})`;
         }
         errorMessageDiv.textContent = 'Error asking AI to fix diagram: ' + errorDetail;
-        // Don't overwrite mermaid code here, keep the user's last attempt that AI tried to fix
-        await renderDiagram(); // Re-render to show original error state and fix button again if render fails
+        await renderDiagram();
       } finally {
         fixButton.disabled = false;
         fixButton.textContent = 'Fix Diagram with AI';
-        // The fix button's display is managed by renderDiagram based on success/failure
       }
     }
 
-
-    /**
-     * Renders the MermaidJS code from the textarea into the preview div.
-     */
     async function renderDiagram() {
-      initializeMermaid(); 
+      initializeMermaid();
       if (!mermaidInitialized) return;
 
       const mermaidCode = document.getElementById('mermaid-code').value;
       const mermaidDiagramDiv = document.getElementById('mermaid-diagram');
       const errorMessageDiv = document.getElementById('error-message');
       const fixButton = document.getElementById('fix-diagram-btn');
-      
-      // Clear previous rendering-specific error messages.
+
       if (errorMessageDiv.textContent.startsWith("Mermaid syntax error") || errorMessageDiv.textContent.startsWith("Error rendering diagram")) {
           errorMessageDiv.textContent = '';
       }
-      mermaidDiagramDiv.innerHTML = ''; 
-      fixButton.style.display = 'none'; // Hide by default, show on error
-      currentMermaidError = ''; // Clear previous error
-
+      mermaidDiagramDiv.innerHTML = '';
+      fixButton.style.display = 'none';
+      currentMermaidError = '';
 
       if (!mermaidCode.trim()) {
-        mermaidDiagramDiv.innerHTML = '<em>Preview will appear here. Enter code or use AI.</em>';
+        mermaidDiagramDiv.innerHTML = '<em>Preview will appear here. Describe, upload, or enter code.</em>';
         return;
       }
 
       try {
-        // console.log("Attempting to render:", mermaidCode);
         const { svg, bindFunctions } = await mermaid.render('renderedMermaidDiagram', mermaidCode);
         mermaidDiagramDiv.innerHTML = svg;
         if (bindFunctions) {
-            bindFunctions(mermaidDiagramDiv); 
+            bindFunctions(mermaidDiagramDiv);
         }
-        // If successful, ensure error message related to rendering is cleared and fix button is hidden
         if (errorMessageDiv.textContent.startsWith("Mermaid syntax error") || errorMessageDiv.textContent.startsWith("Error rendering diagram")) {
             errorMessageDiv.textContent = '';
         }
@@ -416,23 +594,17 @@ Please analyze the error and the code, then provide a corrected version of ONLY 
         console.log("Mermaid diagram rendered successfully.");
       } catch (error) {
         console.error("Mermaid rendering error:", error);
-        currentMermaidError = error.message; // Store the error for the fix function
+        currentMermaidError = error.message;
         errorMessageDiv.textContent = "Mermaid syntax error or rendering issue: " + currentMermaidError;
         mermaidDiagramDiv.innerHTML = `<pre style="color:red;">Error rendering diagram:\n${error.message}\n\nYour code:\n${mermaidCode.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre>`;
-        if (languageModelSession) { // Only show fix button if AI is potentially available
+        if (typeof LanguageModel !== "undefined" && languageModelSession) {
             fixButton.style.display = 'inline-block';
         }
       }
     }
 
-    /**
-     * Converts an SVG string to a base64 encoded PNG Data URL at a specific width.
-     * @param {string} svgString The SVG code as a string.
-     * @param {number} targetWidth The desired width of the output PNG in pixels.
-     * @param {function(string|null)} callback Function to call with the PNG Data URL (or null on error).
-     */
     function svgToPngDataURL(svgString, targetWidth, callback) {
-      const errorMessageDiv = document.getElementById('error-message'); 
+      const errorMessageDiv = document.getElementById('error-message');
       if (!svgString || typeof svgString !== 'string' || !svgString.startsWith('<svg')) {
           console.error("Invalid SVG string passed to svgToPngDataURL:", svgString);
           if (errorMessageDiv) errorMessageDiv.textContent = "Error: Invalid SVG data for conversion.";
@@ -442,10 +614,8 @@ Please analyze the error and the code, then provide a corrected version of ONLY 
 
       const img = new Image();
       const svgDataUri = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgString)));
-      // console.log("Generated SVG Data URI (length):", svgDataUri.length);
 
       img.onload = () => {
-        // console.log(`SVG loaded into image. Intrinsic dims: ${img.width}x${img.height}`);
         if (img.width === 0 || img.height === 0) {
            console.error("SVG loaded with zero dimensions. Cannot convert to PNG.");
            if (errorMessageDiv) errorMessageDiv.textContent = "Error: SVG has zero dimensions, cannot process for PNG conversion.";
@@ -458,16 +628,13 @@ Please analyze the error and the code, then provide a corrected version of ONLY 
         const originalHeight = img.height;
 
         canvas.width = targetWidth;
-        canvas.height = originalHeight * (targetWidth / originalWidth); 
-
-        // console.log(`Canvas dimensions set to: ${canvas.width}x${canvas.height}`);
+        canvas.height = originalHeight * (targetWidth / originalWidth);
 
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
         try {
           const pngDataUrl = canvas.toDataURL('image/png');
-          // console.log("PNG Data URL created successfully.");
           callback(pngDataUrl);
         } catch (e) {
            console.error("Error converting canvas to PNG Data URL:", e);
@@ -488,12 +655,8 @@ Please analyze the error and the code, then provide a corrected version of ONLY 
       };
 
       img.src = svgDataUri;
-      // console.log("Set image source to SVG Data URI for PNG conversion.");
     }
 
-    /**
-     * Inserts the rendered diagram (as PNG) into the Google Workspace document.
-     */
     function insertDiagram() {
       const mermaidDiagramDiv = document.getElementById('mermaid-diagram');
       const errorMessageDiv = document.getElementById('error-message');
@@ -520,9 +683,8 @@ Please analyze the error and the code, then provide a corrected version of ONLY 
       let exportWidth;
       const widthValue = widthInput.value.trim();
 
-      if (widthValue === '') { 
+      if (widthValue === '') {
           exportWidth = 1200;
-          // console.log('Width input empty, defaulting to 1200px for PNG export.');
       } else {
           exportWidth = parseInt(widthValue, 10);
           if (isNaN(exportWidth) || exportWidth <= 0) {
@@ -531,7 +693,7 @@ Please analyze the error and the code, then provide a corrected version of ONLY 
               return;
           }
       }
-      
+
       if (insertButton) {
         insertButton.disabled = true;
         insertButton.textContent = 'Processing...';
@@ -540,10 +702,10 @@ Please analyze the error and the code, then provide a corrected version of ONLY 
 
       svgToPngDataURL(svgString, exportWidth, (pngDataUrl) => {
         if (!pngDataUrl) {
-          if (!errorMessageDiv.textContent) { 
+          if (!errorMessageDiv.textContent) {
               errorMessageDiv.textContent = 'Error: Failed to convert diagram to PNG.';
           }
-          infoMessageDiv.textContent = ''; 
+          infoMessageDiv.textContent = '';
           if (insertButton) {
             insertButton.disabled = false;
             insertButton.textContent = 'Insert Diagram into Document';
@@ -566,13 +728,13 @@ Please analyze the error and the code, then provide a corrected version of ONLY 
           .withFailureHandler((err) => {
             console.error('Error inserting diagram via Apps Script:', err);
             errorMessageDiv.textContent = 'Error inserting diagram: ' + (err.message || JSON.stringify(err));
-            infoMessageDiv.textContent = ''; 
+            infoMessageDiv.textContent = '';
             if (insertButton) {
               insertButton.disabled = false;
               insertButton.textContent = 'Insert Diagram into Document';
             }
           })
-          .insertMermaidImage(base64ImageData); 
+          .insertMermaidImage(base64ImageData);
       });
     }
 
@@ -581,20 +743,18 @@ Please analyze the error and the code, then provide a corrected version of ONLY 
       document.getElementById('image-width').placeholder = "1200 (default)";
 
       const aiInitialized = await initializeLanguageModel();
-      // Message handling for AI initialization is now more integrated into initializeLanguageModel and its callers
       if (aiInitialized && !document.getElementById('info-message').textContent.includes('download')) {
-          document.getElementById('info-message').textContent = "AI initialized. Describe your diagram or enter code.";
+          document.getElementById('info-message').textContent = "AI initialized. Describe, upload, or enter code.";
       } else if (!aiInitialized && !document.getElementById('error-message').textContent) {
-          // If AI init failed, info message might have error, or be blank. Set a general status.
-          if (!document.getElementById('info-message').textContent) { // Avoid overwriting download messages
+          if (!document.getElementById('info-message').textContent) {
              document.getElementById('info-message').textContent = "Manual Mermaid code entry is available. AI features might be unavailable or downloading.";
           }
       }
-      
+
       if (!document.getElementById('mermaid-code').value.trim()) {
-          document.getElementById('mermaid-diagram').innerHTML = '<em>Preview will appear here. Enter code or use AI.</em>';
+          document.getElementById('mermaid-diagram').innerHTML = '<em>Preview will appear here. Describe, upload, or enter code.</em>';
       } else {
-          renderDiagram(); 
+          renderDiagram();
       }
     };
   </script>
