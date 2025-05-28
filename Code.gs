@@ -64,7 +64,7 @@ const showSidebar = () => {
  * @param {string} base64ImageData The PNG image data, base64 encoded (without the data:image/png;base64, prefix).
  * @return {string} A success message or throws an error.
  */
-function insertMermaidImage(base64ImageData) {
+const insertMermaidImage = (base64ImageData) => {
   const container = getContainer();
   if (!base64ImageData) {
     throw new Error("No image data received.");
@@ -173,14 +173,4 @@ function insertMermaidImage(base64ImageData) {
     }
     throw new Error(`Server error inserting image into ${app}: ${e.message}`);
   }
-}
-
-/**
- * Simple function to test if the server is reachable from the client.
- * @return {string} A confirmation message.
- */
-function pingServer() {
-  console.log("Server pinged successfully by client.");
-  const hostApp = PropertiesService.getDocumentProperties().getProperty(HOST_APP_PROPERTY_KEY);
-  return `Server connection successful. Detected host: ${hostApp || 'Not set yet'}`;
 }
