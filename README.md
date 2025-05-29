@@ -45,12 +45,38 @@ This project is a demonstration Google Workspace Editor add-on.
 
 ### **2\. Apps Script Project Setup**
 
-* Create a new Google Apps Script project.  
-* Copy the content of `Code.gs`, `Sidebar.html`, and `appsscript.json` into the corresponding files in your Apps Script project.
+You have two main options to set up the Apps Script project:
+
+**Option 1: Using the Shared Google Doc (Recommended for quick testing in Google Docs)**
+
+1.  **Make a copy** of the shared Google Doc project: [https://docs.google.com/document/d/1jq3whU6i3XYbm3uipvQ0QWZ5BGmMiP6G903T4rinfF8/copy](https://docs.google.com/document/d/1jq3whU6i3XYbm3uipvQ0QWZ5BGmMiP6G903T4rinfF8/copy)
+    *   When you open this link, you'll be prompted to "Make a copy." Click the "Make a copy" button.
+    *   This copied Google Document now contains the Apps Script project and is ready for you to use. You can find the script by opening the document and going to `Extensions > Apps Script`.
+
+**Option 2: Manual Setup (For more control or if you prefer not to use the Google Doc method)**
+
+1.  Create a new Google Apps Script project (e.g., by visiting [script.google.com/create](https://script.google.com/create)).
+2.  Copy the content of `Code.gs`, `Sidebar.html`, and `appsscript.json` from this repository into the corresponding files in your newly created Apps Script project. Ensure the filenames match exactly.
 
 ### **3\. Testing the Add-on**
 
-Follow these steps to test the add-on using a test deployment:
+You have a couple of ways to test the add-on:
+
+**Method 1: Quick Testing in Google Docs (If you used Option 1 for Apps Script Setup)**
+
+If you made a copy of the Google Doc as described in "Apps Script Project Setup - Option 1":
+
+1.  Open your copied Google Document.
+2.  Go to `Extensions > Apps Script` to open the script editor.
+3.  In the script editor, ensure the `onInstall` function is selected in the function dropdown, and click **Run**. You might be prompted to grant permissions the first time.
+4.  Close the script editor and return to your Google Document.
+5.  The add-on menu should now be available. Look for an "Extensions" menu item similar to "Nano Prompt AI Demo" (the exact name is defined in `Code.gs`) and select "✨ Generate a diagram" (or the relevant menu item to open the sidebar).
+
+This method allows you to quickly test the add-on's functionality directly within Google Docs.
+
+**Method 2: Using Test Deployments (For testing in Google Sheets, Slides, or for more comprehensive testing)**
+
+Follow these steps to test the add-on using a test deployment. This method is required if you want to test the add-on in Google Sheets or Google Slides, or if you used "Apps Script Project Setup - Option 2".
 
 #### *Create a test deployment* 
 
