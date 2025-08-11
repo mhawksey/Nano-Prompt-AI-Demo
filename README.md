@@ -1,5 +1,8 @@
 # **Showcase: Gemini Nano Prompt API in a Google Workspace Add-on**
 
+> **Important:** This solution is currently blocked as the `allow` attributes as not configurable in Editor Add-ons. There is an [open issue ticket you can ⭐️](
+https://issuetracker.google.com/issues/437912691) to track.
+
 This repository demonstrates the capabilities of the experimental **Chrome Gemini Nano Prompt API** (`LanguageModel`) through a Google Workspace Editor add-on. The add-on allows users to generate and edit diagrams using natural language, primarily serving as an example to explore and showcase the on-device AI potential of Gemini Nano within Chrome extensions.
 
 **The diagram generation feature was chosen specifically to test the capabilities of Gemini Nano in processing text-to-markdown tasks (MermaidJS).**
